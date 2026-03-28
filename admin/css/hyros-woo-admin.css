@@ -1,0 +1,74 @@
+/* HyrosWoo Admin Styles — native WP admin only */
+
+/* Notice banners */
+.hyros-notice {
+    padding: 10px 14px;
+    margin: 12px 0;
+    border-left: 4px solid #ccc;
+    background: #fff;
+    font-size: 13px;
+}
+.hyros-notice-success {
+    border-color: #46b450;
+    color: #155724;
+    background: #f0fff1;
+}
+.hyros-notice-error {
+    border-color: #dc3232;
+    color: #721c24;
+    background: #fff0f0;
+}
+
+/* Inline status spans */
+.hyros-ok {
+    color: #46b450;
+    font-weight: 600;
+    margin-left: 8px;
+}
+.hyros-error {
+    color: #dc3232;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* Connection badge in page title */
+.hyros-connection-badge {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: normal;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-left: 12px;
+    vertical-align: middle;
+    border: 1px solid #ddd;
+}
+.hyros-badge-ok {
+    color: #46b450;
+    border-color: #46b450;
+    background: #f0fff1;
+}
+.hyros-badge-error {
+    color: #dc3232;
+    border-color: #dc3232;
+    background: #fff0f0;
+}
+.hyros-badge-unknown {
+    color: #888;
+    border-color: #ddd;
+    background: #f9f9f9;
+}
+
+/* Log table — failed rows */
+.hyros-log-table .hyros-row-failed td {
+    color: #dc3232;
+}
+
+/* Order meta box */
+.hyros-order-meta {
+    margin-top: 10px;
+    font-size: 13px;
+}
+.hyros-order-meta .hyros-ok,
+.hyros-order-meta .hyros-error {
+    font-size: 12px;
+}
