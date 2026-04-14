@@ -1,0 +1,3416 @@
+[comment]: <> (The markdown format of this file works properly in app.apiary.io)
+HOST: https://api.hyros.com/v1
+API_DOCS_VERSION: 1.37
+[comment]: <> (All API-Key values in this file are documentation placeholders, not production credentials.)
+
+# Hyros
+
+## Status Codes and Errors
+
++ `200 OK` - Response to a successful GET, PUT, POST or DELETE.
++ `400 Bad Request` - Malformed request; form validation errors.
++ `401 Unauthorized` - Wrong Api-Key or no provided.
++ `429 Too Many Requests` - Number of API requests per second exceeded.
+
+### Accepted request
+    + Response:
+
+        {
+            "request_id": <id>,
+            "result": "OK"
+        }
+
+### Failed request
+    + Response:
+
+        {
+            "result": "ERROR",
+            "message": <List of errors>
+        }
+
+## Rate Limiting
+
+All API requests are subject to rate limiting to ensure fair usage and system stability.
+
+### Default Limits
+
+| Limit Type | Requests | Window     |
+|------------|----------|------------|
+| Per Second | 30       | 1 second   |
+| Per Minute | 1000     | 60 seconds |
+
+### Rate Limit Response Headers
+
+Every API response includes headers with rate limit information:
+
+| Header | Description                                                                | Example |
+|--------|----------------------------------------------------------------------------|---------|
+| `X-RateLimit-Limit` | Rate limit policy showing all limits in format `capacity;w=window_seconds` | `30;w=1, 1000;w=60` |
+| `X-RateLimit-Remaining` | Number of requests remaining in the most restrictive window                | `25` |
+| `X-RateLimit-Reset` | Unix timestamp (seconds) when the rate limit will reset                    | `1707235200` |
+| `Retry-After` | Seconds to wait before retrying                                            | `1` |
+
+## Data Structures
+[comment]: <> (Definition of the data structures used for apiary)
+### Item
++ name (required, string) - name of the product
+
++ price (required, number) -  Product price (per unit with costOfGoods included)
+
++ externalId (optional, string) - unique identifier of the product coming from the external integration
+
++ quantity (optional, number) - the number of copies purchased for the received product. Defaults to 1 if not included
+
++ costOfGoods (optional, number) - cost per unit of manufacture of the product.It must be included in the price. Defaults to 0 if not included
+
++ taxes (optional, number) - the taxes applied to the item (per unit). Defaults to 0 if not included
+
++ itemDiscount (optional, number) - the discount value that will be applied to the specific line item
+
++ packages (optional, array) - product packages to which this item belongs to (this is used for recurring sales attribution)
+
++ tag (optional, string) - the tag that will be created for the sale item
+
++ categoryName (optional, string) - The sale will be linked to a product category.
+
+### CartItem
++ name (required, string) - name of the product
+
++ price (required, number) -  Product price
+
++ externalId (optional, string) - unique identifier of the product coming from the external integration
+
++ quantity (optional, number) - the number of copies purchased for the received product. Defaults to 1 if not included
+
++ sku (optional, string) - the unique product reference code
+
+### AdspendType (enum)
++ `FACEBOOK`
++ `GOOGLE`
++ `TIKTOK`
++ `SNAPCHAT`
++ `LINKEDIN`
++ `TWITTER`
++ `PINTEREST`
++ `BING`
+
+### AdspendSubType (enum)
++ `DISPLAY`
++ `VIDEO`
+
+### SubscriptionStatus (enum)
++ `ACTIVE`
++ `TRIALING`
++ `CANCELED`
++ `PAST_DUE`
++ `INCOMPLETE`
++ `INCOMPLETE_EXPIRED`
++ `UNPAID`
++ `COMPLETED`
++ `PAUSED`
+
+### CallState (enum)
++ `QUALIFIED`
++ `UNQUALIFIED`
++ `CANCELLED`
++ `NO_SHOW`
+
+## Leads [/api/v1.0/leads]
+### Retrieve Leads [GET /api/v1.0/leads?ids={ids}&emails={emails}&fromDate={startDate}&toDate={endDate}&pageSize={size}&pageId={number}]
+
+Search and retrieve leads by their join date, email or id.
+
++ Parameters
+
+    + ids (optional, array, `"id1","id2","id3"`) ... An array of lead ids to be retrieved. At most 50 can be provided in a single request.
+
+    + emails (optional, array, `"email1","email2"`) ... An array of emails or email prefixes to search leads by. At most 50 can be provided.
+
+    + fromDate (optional, string, `Example: 2021-04-16T20:35:00-05:00`) ... An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only leads whose join date is more recent than this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + toDate (optional, string, `Example: 2021-04-16T20:35:00-05:00`) ... An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only leads whose join date is older that this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + pageSize (optional, number) ... The maximum number of leads to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) ... The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more leads left to retrieve). Any changes to other request parameters will reset the pagination.
+
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "email": "lead1@email.com",
+                        "id": "40b5af5444756c2b5e666fcb658affd2a4b455bce3711c43f88763147381e368",
+                        "creationDate": "2023-01-04T04:36:41-05:00",
+                        "tags": ["$ettst"],
+                        "provider": {
+                            "id": "sd54sa56dsa64sd56as4d5a5s", // Id of lead in external platform
+                            "integration": {
+                                "name": "Your integration name",
+                                "type": "SHOPIFY",
+                                "id": "wef45ewf4we64634" // Account id of integration
+                            }
+                        }
+                    },
+                    {
+                        "email": "lead2@email.com",
+                        "id": "b5981e8ce87d08773a4ggre985d2d9949153c6fb55cb5075291941d9f23f4282",
+                        "creationDate": "2023-01-04T02:37:45-05:00",
+                        "ips": ["1.2.3.4"]
+                        "phoneNumbers": ["202-555-0184"]
+                    }
+                ],
+                "nextPageId": "568fd86587125f55117505312dc72bb8b71e9647a25e5b142d3f28bccd228360",
+                "request_id": "e47941e7104gtrgtrgtr24d0884c6df09407e76fd"
+            }
++ Response 400 (application/json)
+
+    + Possible errors:
+        + ids:
+            + The maximum number of ids to be provided for search is 50
+        + emails:
+            + The maximum number of emails to be provided for search is 50
+        + from_date:
+            + Invalid date format. Please, read the API documentation
+        + to_date:
+            + Invalid date format. Please, read the API documentation
+        + pageSize:
+            + Page size must be between 1 and 250
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid value for parameter: emails"]
+            }
+
+### Create Lead [POST]
+
+Create or Update leads and their tags. If the applied Tag matches with that of a Product, a sale will be generated for said lead, only if it didn't already have the tag.
+
++ Attributes
+
+    + email (optional, string) - email of the lead that will be created. **If no email is entered, a phone number is required.**
+
+    + firstName (optional, string) - first name of the lead.
+
+    + lastName (optional, string) - last name of the lead.
+
+    + tags (optional, array[string]) - array of tags that will be applied to the lead. This array can be sent empty.
+
+    + leadIps (optional, array[string]) - IPs of the lead that will be created. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + phoneNumbers (optional, string, array[string]) - Phone numbers of the lead that will be created. Will be used on the Ad attributing process. **This array can be sent empty but If no email is entered, a phone number is required.**
+
+    + stage (optional, string) - The name of a stage to be applied to the lead
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "email":"John@doe.com",
+                "firstName":"John",
+                "lastName":"Doe",
+                "tags":[
+                    "!Tag1"
+                ],
+                "leadIps": [
+                    "172.8.105.28"
+                ],
+                "phoneNumbers": [
+                    "1105385366"
+                ],
+                "stage": "MQL",
+                "adOptimizationConsent": "GRANTED"    // GRANTED | DENIED | UNSPECIFIED
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + email:
+            + The Email is not valid
+            + Make sure that at least an email or a phone number is added
+        + phoneNumbers:
+            + Make sure that at least an email or a phone number is added
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Missing required field: Email"]
+            }
+
+### Update Lead [PUT /api/v1.0/leads?email={lead@email.com}&id={leadId}&phone={leadPhone}]
+
+Update leads and their tags.
+
++ Parameters
+
+    + email (optional, string) - Email used to search for the lead to update.
+
+    + id (optional, string) - Id used to search for the lead to update
+
+    + phone (optional, string) - Phone used to search for the lead to update.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "email": "John@doe.com",          // New email
+                "firstName": "John",               // New first name
+                "lastName": "Doe",                 // New last name
+
+                "tags": [
+                    "!Tag1"
+                ],                    // Tags to apply to the lead
+
+                "leadIps": [
+                    "172.8.105.28"
+                ],                    // IPs to apply to the lead
+
+                "phoneNumbers": [
+                    "1105385366"
+                ],                    // Phone numbers to apply to the lead
+
+                "adOptimizationConsent": "GRANTED",  // GRANTED | DENIED | UNSPECIFIED
+
+                "leadStage": {                //Lead stage to apply to the lead
+                    "name": "leadStageNameCINCO",
+                    "date": "2025-11-13T14:00:00-03:00"
+                }
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + parameters:
+            + Missing required parameter: provide either 'id' or 'email' or 'phone'.
+        + phoneNumbers:
+            + The phone in the url request is not valid
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Missing required parameter: provide either 'leadId' or 'email' or 'phone']
+            }
+
+## Leads journey [/api/v1.0/leads/journey?ids="id1","id2","id2"]
+### Retrieve leads journey [GET]
+
+Retrieve the details about you leads journeys using the lead ids.
+
++ Parameters
+
+    + ids (required, array) - array of string ids representing each lead. These ids can be found by searching the leads through the `GET /leads` endpoint.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "lead": {
+                            "email": "lead1@email.com",
+                            "id": "40b5af5444756c2b5e666fcb658affd2a4b455bce3711c43f88763147381e368",
+                            "creationDate": "2023-01-04T04:36:41-05:00",
+                            "isOriginLead": true,
+                            "tags": [
+                                "$ettst"
+                            ],
+                            "provider": {
+                                "id": "sd54sa56dsa64sd56as4d5a5s",
+                                // Id of lead in external platform
+                                "integration": {
+                                    "name": "Your integration name",
+                                    "type": "SHOPIFY",
+                                    "id": "wef45ewf4we64634"
+                                    // Account id of integration
+                                }
+                            }
+                        },
+                        "sales": [
+                            {
+                                "id": "sfds65f4ds6f54df",
+                                "orderId": "ukik651iuk984k",
+                                "recurring": false,
+                                "quantity": 2,
+                                "creationDate": "2023-01-04T04:36:41-05:00",
+                                "qualified": true,
+                                "score": 1,
+                                "product": {
+                                    "id": "wefwefwe498w",
+                                    "sku": "jyujyuj6y5j16",
+                                    "name": "Your awesome product",
+                                    "tag": "$your-awesome-product",
+                                    "category": {
+                                        "id": "jyufdvf4v849v",
+                                        "name": "Awesome products"
+                                    },
+                                    "provider": {
+                                        "id": "sd54sa56dsa64sd56as4d5a5s",
+                                        // Id of lead in external platform
+                                        "integration": {
+                                            "name": "Your integration name",
+                                            "type": "SHOPIFY",
+                                            "id": "wef45ewf4we64634"
+                                            // Account id of integration
+                                        }
+                                    }
+                                },
+                                "price": {
+                                    "currency": "EUR",
+                                    "price": 10.5,
+                                    "discount": 0,
+                                    "hardCost": 5.25,
+                                    "refunded": 0
+                                },
+                                "usdPrice": {
+                                    "price": 11.15,
+                                    "discount": 0,
+                                    "hardCost": 5.57,
+                                    "refunded": 0
+                                },
+                                "provider": {
+                                    "id": "sd54sa56dsa64sd56as4d5a5s",
+                                    // Id of lead in external platform
+                                    "integration": {
+                                        "name": "Your integration name",
+                                        "type": "SHOPIFY",
+                                        "id": "wef45ewf4we64634"
+                                        // Account id of integration
+                                    }
+                                },
+                                "firstSource": {
+                                    "sourceLinkId": "asdas4564dsd",
+                                    "name": "Facebook Adset",
+                                    "tag": "@facebook-adset",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "edssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                },
+                                "lastSource": {
+                                    "sourceLinkId": "dfsdfsasdas4564dsd",
+                                    "name": "Facebook Adset 2",
+                                    "tag": "@facebook-adset-2",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad 2",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "esdfsddssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign 2"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                }
+                            }
+                        ],
+                        "calls": [
+                            {
+                                "id": "kuiyjmuykyu56yb56u",
+                                "tag": "$call",
+                                "creationDate": "2023-01-04T04:36:41-05:00",
+                                "qualified": true,
+                                "score": 1,
+                                "provider": {
+                                    "id": "sd54sa56dsa64sd56as4d5a5s",
+                                    // Id of lead in external platform
+                                    "integration": {
+                                        "name": "Your integration name",
+                                        "type": "SHOPIFY",
+                                        "id": "wef45ewf4we64634"
+                                        // Account id of integration
+                                    }
+                                },
+                                "firstSource": {
+                                    "sourceLinkId": "asdas4564dsd",
+                                    "name": "Facebook Adset",
+                                    "tag": "@facebook-adset",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "edssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                },
+                                "lastSource": {
+                                    "sourceLinkId": "dfsdfsasdas4564dsd",
+                                    "name": "Facebook Adset 2",
+                                    "tag": "@facebook-adset-2",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad 2",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "esdfsddssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign 2"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                }
+                            }
+                        ],
+                        "carts": [
+                            {
+                                "id": "d234d34345f34534f345f34",
+                                "orderId": "ukik651iuk984k",
+                                // Only present if cart was purchased
+                                "creationDate": "2023-01-04T04:36:00-05:00",
+                                "events": 1,
+                                "provider": {
+                                    "id": "sd54sa56dsa64sd56as4d5a5s",
+                                    // Id of lead in external platform
+                                    "integration": {
+                                        "name": "Your integration name",
+                                        "type": "SHOPIFY",
+                                        "id": "wef45ewf4we64634"
+                                        // Account id of integration
+                                    }
+                                },
+                                "products": [
+                                    {
+                                        "id": "wefwefwe498w",
+                                        "sku": "jyujyuj6y5j16",
+                                        "name": "Your awesome product",
+                                        "tag": "$your-awesome-product",
+                                        "category": {
+                                            "id": "jyufdvf4v849v",
+                                            "name": "Awesome products"
+                                        },
+                                        "provider": {
+                                            "id": "sd54sa56dsa64sd56as4d5a5s",
+                                            // Id of lead in external platform
+                                            "integration": {
+                                                "name": "Your integration name",
+                                                "type": "SHOPIFY",
+                                                "id": "wef45ewf4we64634"
+                                                // Account id of integration
+                                            }
+                                        }
+                                    }
+                                ],
+                                "firstSource": {
+                                    "sourceLinkId": "asdas4564dsd",
+                                    "name": "Facebook Adset",
+                                    "tag": "@facebook-adset",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "edssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                },
+                                "lastSource": {
+                                    "sourceLinkId": "dfsdfsasdas4564dsd",
+                                    "name": "Facebook Adset 2",
+                                    "tag": "@facebook-adset-2",
+                                    "disregarded": false,
+                                    "organic": false,
+                                    "adSource": {
+                                        "adSourceId": "<facebook adset id>",
+                                        "adAccountId": "<facebook ad account id>",
+                                        "platform": "FACEBOOK"
+                                    },
+                                    "sourceLinkAd": {
+                                        "name": "Facebook Ad 2",
+                                        "adSourceId": "<facebook ad id>"
+                                    },
+                                    "trafficSource": {
+                                        "id": "jydfgdfgufdvf4v849v",
+                                        "name": "Facebook"
+                                    },
+                                    "category": {
+                                        "id": "esdfsddssvsvd1v56d1dv",
+                                        "name": "Facebook Campaign 2"
+                                    },
+                                    "goal": {
+                                        "id": "il54ol84iol54i6ol",
+                                        "name": "Shopify sales"
+                                    }
+                                }
+                            }
+                        ],
+                        "linkedLeads": [
+                            {
+                                "email": "connected_lead@email.com",
+                                "id": "b5981e8ce87d08773a4ggre985d2d9949153c6fb55cb5075291941d9f23f4282",
+                                "creationDate": "2023-01-04T02:37:45-05:00",
+                                "ips": [
+                                    "1.2.3.4"
+                                ]
+                                "phoneNumbers": [
+                                    "202-555-0184"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+
+
+## Sales [/api/v1.0/sales?isRecurringSale={isRecurring}&saleRefundedState={state}&fromDate={startDate}&toDate={endDate}&pageSize={size}&pageId={number}&ids={ids}&emails={emails}&leadIds={leadIds}&productTags={productTags}]
+### Retrieve sales [GET]
+
+Search and retrieve sales by their join date, email, lead id, product tag, id, and if is recurring or if is refunded.
+
++ Parameters
+
+    + ids (optional, array, `"id1","id2"`) ... Array of sales ids to be retrieved. At most 50 can be provided in a single request.
+
+    + emails (optional, array, `"email1","email2"`) ... Array of emails or email prefixes to search sales by. At most 50 can be provided.
+
+    + leadIds (optional, array, `"leadId1","leadId2"`) ... Array of leadIds or leadId to search sales by. At most 50 can be provided.
+
+    + productTags (optional, array, `"tag1","tag2","tag2"`) ... Array of productTags or product tag to search sales by. At most 20 can be provided.
+
+    + isRecurringSale: (optional, string) - indicates if the sales to search are recurring, non-recurring or both.
+        + Default: `ALL`
+        + Members
+            + RECURRING
+            + NON_RECURRING
+            + ALL
+
+    + saleRefundedState: (optional, string) - indicates if the sales to search are refunded, non-refunded or both.
+        + Default: `ALL`
+        + Members
+            + REFUNDED
+            + NON_REFUNDED
+            + ALL
+
+    + fromDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only sales whose join date is more recent than this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + toDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only sales whose join date is older that this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + pageSize (optional, number) - The maximum number of sales to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more sales left to retrieve). Any changes to other request parameters will reset the pagination.
+
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+    + Example
+
+            https://api.hyros.com/v1/api/v1.0/sales?isRecurringSale=ALL&saleRefundedState=ALL&fromDate=2023-08-24T00:00:00-03:00&toDate=2023-08-24T20:35:00-03:00&pageSize=25&pageId=2&ids='sle-0f74de33708def3e6684ebe672d68e3e4d74e72693d436376f7dd747916f3c73'&emails="clintbarton@test.io"&leadIds="721d9b0edcd04536e97008a85b921e60ce4307c12c72c165693399abf6c7ddba"&productTags="$recurly-blue-shoes-12300"
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "id": "sle-db882bfed1b5280735eb03ac5b9be0c6edf04d7a52204d41f0c6cf6c28ad52234",
+                        "orderId": "7016953413",
+                        "creationDate": "Thu Nov 17 10:51:54 ART 2022",
+                        "qualified": true,
+                        "score": 1.0,
+                        "recurring": false,
+                        "quantity": 1,
+                        "lead": {
+                            "email": "John@doe.com",
+                            "id": "6e7f85e73a49189f2cb30cc255304adb4d3b20a0bc26776a29bf2a861602078s",
+                            "creationDate": "Thu Nov 17 10:51:11 ART 2022",
+                            "ips": [
+                                "201.220.21.777"
+                            ],
+                            "tags": [
+                                "!clicked",
+                                "@testing",
+                                "$api-based-on-annual-payment"
+                            ]
+                        },
+                        "firstSource": {
+                            "sourceLinkId": "8e5c10ea09ed899f9e7a386501b8003e7fe8a0429633b0c1bf647ce92f51433a",
+                            "name": "testing",
+                            "tag": "@testing",
+                            "disregarded": false,
+                            "organic": false,
+                            "clickDate": "Thu Nov 19 10:51:11 ART 2022";
+                            "clickId": "fa4567fc3611afeb888e314298";
+                            "trafficSource": {
+                                "id": "cat-cc4342fa4567fc3611afeb888e31eba2",
+                                "name": "facebook"
+                            },
+                            "goal": {
+                                "id": "cat-909ba403c207fbdfb6344b96f3294342",
+                                "name": "all"
+                            },
+                            "category": {
+                                "id": "cat-b83d72b83a742f9bd8d93a2403ba3809",
+                                "name": "hyros test campaign 2"
+                            },
+                            "adSource": {
+                                "adSourceId": "23843648148170123",
+                                "adAccountId": "887874684917514",
+                                "platform": "FACEBOOK"
+                            },
+                            gclId: "24567781", //only for Google
+                            gbraId: "4525677", //only for Google
+                            wbraId: "4568789", //only for Google
+                        },
+                        "lastSource": {
+                            "sourceLinkId": "8e5c10ea09ed899f9e7a386501b8003e7fe8a0429633b0c1bf647ce92f51433a",
+                            "name": "testing",
+                            "tag": "@testing",
+                            "disregarded": false,
+                            "organic": false,
+                            "clickDate": "Thu Nov 20 10:51:11 ART 2022";
+                            "clickId": "a386501b8003e7fe8a0429";
+                            "trafficSource": {
+                                "id": "cat-cc4342fa4567fc3611afeb888e31eba2",
+                                "name": "facebook"
+                            },
+                            "goal": {
+                                "id": "cat-909ba403c207fbdfb6344b96f3294342",
+                                "name": "all"
+                            },
+                            "category": {
+                                "id": "cat-b83d72b83a742f9bd8d93a2403ba3809",
+                                "name": "hyros test campaign 2"
+                            },
+                            "adSource": {
+                                "adSourceId": "23843648148170123",
+                                "adAccountId": "887874684917514",
+                                "platform": "FACEBOOK"
+                            },
+                            gclId: "24567781", //only for Google
+                            gbraId: "4525677", //only for Google
+                            wbraId: "4568789", //only for Google
+                        },
+                        "price": {
+                            "price": 84.34,
+                            "discount": 0,
+                            "hardCost": null,
+                            "refunded": 0.0,
+                            "currency": "USD"
+                        },
+                        "product": {
+                            "id": "9b1b1049ba4dd325fb9b130ecd12e1ff",
+                            "name": "api-based-on-annual-payment",
+                            "tag": "$api-based-on-annual-payment",
+                            "category": {
+                                "id": "e958d53903cccd4354abe6cce7b04151",
+                                "name": "sale import"
+                            }
+                        },
+                        "provider": {
+                           "id": "9b1b1049ba4dd325f30ecd12e1ff";
+                           "integration": {
+                                "id": "9ba4dd325fb9b130ecd1",
+                                "name": "Stripe integration",
+                                "externalIntegrationType": "STRIPE"
+                           }
+                        }
+                    }
+                ],
+                "nextPageId": "ae910fcb3d22e2b89bd69dbc92ed2ad6836f6a611cf0a5e53082222fe1055eb6",
+                "request_id": "cee7451ac5aa4dea84a10435d30ad111"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + ids:
+            + The maximum number of ids to be provided for search is 50
+        + emails:
+            + The maximum number of emails to be provided for search is 50
+        + leadIds:
+            + The maximum number of ids to be provided for search is 50
+        + productTags:
+            + The maximum number of product tags to be provided for search is 20
+        + isRecurringSale:
+            + Invalid value for parameter isRecurringSale
+        + saleRefundedState:
+            + Invalid value for parameter saleRefundedState
+        + from_date:
+            + Invalid date format. Please, read the API documentation
+        + to_date:
+            + Invalid date format. Please, read the API documentation
+        + pageSize:
+            + Page size must be between 1 and 250
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid value for parameter: emails"]
+            }
+
+## Update sale [/api/v1.0/sales?ids={id}&isRecurringSale={isRecurring}&isRefunded={refunded}&refundedAmount={refundedAmount}&refundedDate={date}]
+### Update Sales [PUT]
+
+Update sales by their ids.
+
++ Parameters
+
+    + ids (required, array) - array of sales ids to be retrieved. At most 50 can be provided in a single request.
+
+    + isRecurringSale (optional, boolean) - indicates if the sales will be recurring or not.
+
+    + isRefunded (optional, boolean) - indicates if the sales will be refunded or not.
+
+    + refundedDate `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Required if isRefunded is provided with a true value, otherwise the refunded date will be set with the present date.
+
+    + refundedAmount (optional, string) - indicates the amount to be refunded.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+    + Example
+
+            https://api.hyros.com/v1/api/v1.0/sales?ids='sle-0f74de33708def3e6684ebe672d68e3e4d74e72693d436376f7dd747916f3c73'&isRecurringSale=ALL&isRefunded=true&refundedDate=2021-04-16T20:35:00-05:00
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+### Delete [DELETE /api/v1.0/sales/{id}]
+
+Delete sale by their id.
+
++ Parameters
+
+    + id (required, string) - sale id to be deleted.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+## Orders [/api/v1.0/orders]
+### Create [POST]
+
+Create an order with all necessary information. Additionally, creates the lead if not already present on the account.
+
++ Attributes
+
+    + email (optional, string) - email associated with the lead that made the purchase. **If no email is entered, a phone number is required.**
+
+    + parentEmail (optional, string) - email of the origin lead of the lead that made the purchase. If present, the lead with the email provided would be assigned as origin lead of the lead that made the purchase and the sale would be attributed to the origin lead.
+
+    + firstName (optional, string) - first name of the lead that made the purchase.
+
+    + lastName (optional, string) - last name of the lead that made the purchase.
+
+    + leadIps (optional, array[string]) - IPs of the customer that made the purchase. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + stage (optional, string) - The name of a stage to be applied to the customer's lead
+
+    + phoneNumbers (optional, string, array[string]) - phone numbers of the lead that made the purchase. Will be used on the Ad attributing process. **This array can be sent empty but If no email is entered, a phone number is required.**
+
+    + orderId (optional, string) - identifier by which sales will be grouped. A default id will be assigned if it is not included. Only letters, numbers, underscores (_), hyphens (-), periods (.), and colons (:) are accepted, with no spaces allowed.
+    + externalSubscriptionId (optional, string) - indicates which subscription it belongs to.
+
+    + cartId (optional,string) - cart identifier to which the order will be linked.
+
+    + date: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the transaction was processed. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+        + Default: Current date and time.
+
+    + shippingCost: `Example: 10.5` (optional, number) - the sales shipping cost. This value will be distributed to items.Default is zero.
+
+    + taxes: `Example: 9.8` (optional, number) - the order taxes. This value will be distributed to items. Default is zero.
+
+    + orderDiscount: `1.2` (optional, number)  - the discount value that will be applied to the complete order, distributing its value evenly across all line items.
+
+    + priceFormat: `Values: DECIMAL, INTEGER` (optional, string) - the sales price format.
+        + Default: `DECIMAL`
+
+    + currency: `EUR` (optional,string)
+        + Default: Hyros account setup.
+
+    + items (required, array[Item])
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+              {
+                  "email":"john@doe.com",
+                  "parentEmail": "jane@doe.com",
+                  "firstName": "John",
+                  "lastName": "Doe",
+                  "leadIps": [
+                      "172.8.105.28"
+                  ],
+                  "stage": "Customer",
+                  "phoneNumbers": [
+                      "1105385366"
+                  ],
+                  "orderId": "56354354588",
+                  "cartId": "d49b708b3df50505869ca54f026e7c97a4959b587605f14f91c7e289de9f80bd",
+                  "date": "2021-04-16T20:35:00",
+                  "priceFormat": "DECIMAL",
+                  "currency": "USD",
+                  "taxes": 98.6,
+                  "shippingCost":10,
+                  "orderDiscount": 3.5,
+                  "items": [
+                      {
+                          "name":"T-Shirt - Blue",
+                          "price": 15.50,
+                          "costOfGoods": 2.25,
+                          "externalId": "18294892740",
+                          "quantity": 2,
+                          "taxes": 2.5,
+                          "itemDiscount": 2.5,
+                          "packages": ["Package 1", "Package 2"],
+                          "tag": "$premiun-t-shirt-blue",
+                          "categoryName": "premium store"
+                      }
+                  ]
+              }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + email:
+            + The Email is not valid
+            + Make sure that at least an email or a phone number is added
+        + parentEmail:
+                        + The parentEmail is not valid
+        + phoneNumbers:
+            + Make sure that at least an email or a phone number is added
+        + date:
+            + Invalid date format. Please, read the API documentation
+        + shippingCost:
+            + Invalid shipping cost format. Please, read the API documentation
+        + taxes:
+            + Invalid taxes format. Please, read the API documentation
+        + orderDiscount:
+            + Invalid order discount format. Please, read the API documentation
+        + currency:
+            + Invalid currency
+        + items:
+            + Items must be at least 1
+            + Missing required field: Items
+            + Name must be at least 3 characters long for Item X
+            + Missing required field Name for Item X
+            + Missing required field Price for Item X
+            + Price not valid for Item X
+            + Taxes not valid for Item X
+            + CostOfGoods not valid for Item X
+            + ItemDiscount not valid for Item X
+            + Tag not valid for Item X
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Make sure that at least an email or a phone number is added"]
+            }
+
+### Refund [DELETE /api/v1.0/orders/{id}?refundedAmount={refundedAmount}]
+Refund an order by order id and update the income of the lead.
+
++ Parameters
+
+    + id (required, string) - order id to be deleted.
+
+    + refundedAmount (optional, string) - indicates the amount to be refunded.
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Api key not valid"]
+            }
+
+## Calls [/api/v1.0/calls?ids={ids}&fromDate={startDate}&toDate={endDate}&pageSize={size}&pageId={number}&emails={emails}&leadIds={leadIds}&productTags={productTags}&qualified={qualified}&qualificationStages={qualificationStages}]
+### Retrieve calls [GET]
+
+Search and retrieve calls by their join date, email, lead id, product tag or id.
+
++ Parameters
+
+    + ids (optional, array, `"id1","id2","id2"`) ... Array of calls ids to be retrieved. At most 50 can be provided in a single request.
+
+    + emails (optional, array, `"email1@mail", "email2@mail2"`) ... Array of emails or email prefixes to search calls by. At most 50 can be provided.
+
+    + leadIds (optional, array, `"leadId1", "leadId2"`) ... Array of leadIds or leadId to search calls by. At most 50 can be provided.
+
+    + productTags (optional, array, `"tag1","tag2","tag3"`) ... Array of productTags or product tag to search calls by. At most 20 can be provided.
+
+    + fromDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only calls whose join date is more recent than this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + toDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only calls whose join date is older that this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + pageSize (optional, number) - The maximum number of calls to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more calls left to retrieve). Any changes to other request parameters will reset the pagination.
+
+    + qualified (optional, boolean) - A flag that indicates if the calls to be returned should be qualified or not.
+
+    + qualificationStages (optional, array, `"callQualificationParamName1", "callQualificationParamName2"`) ... Array of qualification stages names. At most 50 can be provided in a single request.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "id": "cll-eec11d39e6ec1843a78418c925d2a42a44e9fba95638c9ceac41cc2c3362e8dd",
+                        "tag": "$call131220221156",
+                        "qualified": true,
+                        "name": "call 1",
+                        "externalId": "c1843a78418c925",
+                        "score": 1.0,
+                        "creationDate": "Fri Dec 16 08:51:20 ART 2022",
+                        "state": "QUALIFIED",
+                        "qualification": {
+                            "name": "Qualification name",
+                            "oldName": "Old name"
+                        },
+                        "lead": {
+                            "email": "john@doe.com",
+                            "id": "75aa25ac9ed69c35dd8596b72232685d79589248d523336d8a901c1d2292rrf2",
+                            "creationDate": "Fri Dec 16 08:39:30 ART 2022",
+                            "firstName": "John",
+                            "lastName": "Doe",
+                            "tags": [
+                                "@examplesource",
+                                "$testSale3",
+                                "$call131220221156"
+                            ]
+                        },
+                        "firstSource": {
+                            "sourceLinkId": "f553ddc1e6d5d0cf16773f4ffb2a5e1ce01adf051ba2b946c8c72b51c5666315",
+                            "name": "Example Source",
+                            "tag": "@examplesource",
+                            "disregarded": false,
+                            "organic": false,
+                            "trafficSource": {
+                                "id": "cat-fadd8de472b4d89a1ffd250cdce83987",
+                                "name": "example traffic source category"
+                            },
+                            "goal": {
+                                "id": "cat-5219277e92a289562b4e48c350ae1902",
+                                "name": "example goal category"
+                            },
+                            "category": {
+                                "id": "cat-0e521283f878891f88e04fcacb5ccf07",
+                                "name": "example category"
+                            }
+                        },
+                        "lastSource": {
+                            "sourceLinkId": "f553ddc1e6d5d0cf16773f4ffb2a5e1ce01adf051ba2b946c8c72b51c5666315",
+                            "name": "Example Source",
+                            "tag": "@examplesource",
+                            "disregarded": false,
+                            "organic": false,
+                            "trafficSource": {
+                                "id": "cat-fadd8de472b4d89a1ffd250cdce83987",
+                                "name": "example traffic source category"
+                            },
+                            "goal": {
+                                "id": "cat-5219277e92a289562b4e48c350ae1902",
+                                "name": "example goal category"
+                            },
+                            "category": {
+                                "id": "cat-0e521283f878891f88e04fcacb5ccf07",
+                                "name": "example category"
+                            }
+                        }
+                    }
+                ],
+                "nextPageId": "ae910fcb3d22e2b89bd69dbc92ed2ad6836f6a611cf0a5e53082222fe1055eb6",
+                "request_id": "cee7451ac5aa4dea84a10435d30ad111"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + ids:
+            + The maximum number of ids to be provided for search is 50
+        + emails:
+            + The maximum number of emails to be provided for search is 50
+        + leadIds:
+            + The maximum number of ids to be provided for search is 50
+        + productTags:
+            + The maximum number of product tags to be provided for search is 20
+        + from_date:
+            + Invalid date format. Please, read the API documentation
+        + to_date:
+            + Invalid date format. Please, read the API documentation
+        + pageSize:
+            + Page size must be between 1 and 250
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["The maximum number of ids to be provided for search is 50"]
+            }
+
+### Create [POST]
+Create a call with all necessary information. Additionally, creates the lead if not already present on the account.
+
++ Attributes
+
+    + name (required, string) - name of the call.
+
+    + email (required, string) - email associated with the lead that made the call.
+
+    + firstName (optional, string) - first name of the lead that made the call.
+
+    + lastName (optional, string) - last name of the lead that made the call.
+
+    + leadIps (optional, array[string]) - IPs of the customer that made the call. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + stage (optional, string) - The name of a stage to be applied to the customer's lead
+
+    + phoneNumbers (optional, string, array[string]) - phone numbers of the lead that made the call. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + externalId (optional, string) - unique identifier of the call coming from the external integration. If a call with the same externalId exists, it will be updated.
+
+    + id (optional, string) - DEPRECATED! Use externalId param instead. identifier by which the call will be grouped. A default id will be assigned if it is not included.
+
+    + date: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the transaction was processed. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+        + Default: Current date and time.
+
+    + qualified (optional, boolean) - DEPRECATED! Use state param instead. A flag that indicates if the call should be marked as unqualified. If it's not present the call is created as qualified
+
+    + qualification (optional, string) - The custom name of the qualification to be applied to the call.
+
+    + state (optional, CallState) - indicates the call state to be assigned.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "name": "Call 1",
+                "email":"john@doe.com",
+                "firstName": "John",
+                "lastName": "Doe",
+                "leadIps": [],
+                "stage": "SQL",
+                "phoneNumbers": [],
+                "id": "18294892740",
+                "date": "2021-04-16T20:35:00",
+                "qualification": "Qualified"
+                "state" : "QUALIFIED"
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Make sure that at least an email or a phone number is added"]
+            }
+
+## Update a call [/api/v1.0/calls?ids={id}&state={state}]
+### Update Calls [PUT]
+
+Update calls by their ids.
+
++ Parameters
+
+    + ids (required, array) - array of sales ids to be retrieved. At most 50 can be provided in a single request.
+
+    + externalIds (required, array) - array of sales externalIds to be retrieved. At most 50 can be provided in a single request.
+
+    + name (required, string) - indicates the call name to be assigned.
+
+    + qualification (optional, string) - indicates the call qualification to be assigned.
+
+    + state (optional, enum) - indicates the call state to be assigned.
+        + Members
+            + QUALIFIED
+            + UNQUALIFIED
+            + CANCELLED
+            + NO_SHOW
+
+    + qualified (optional, boolean) - DEPRECATED! Use state param instead. Indicates if the call will be qualified or not ().
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+### Delete [DELETE /api/v1.0/calls/{id}]
+
+Delete call by their id.
+
++ Parameters
+
+    + id (required, string) - call id to be deleted.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+## Ad Attribution [/api/v1.0/attribution?attributionModel={attributionModel}&startDate={startDate}&endDate={endDate}&level={level}&fields={fields}&ids={ids}&currency={currency}&dayOfAttribution={dayOfAttribution}&scientificDaysRange={scientificDaysRange}]
+### Get Ads Attribution Report [GET]
+Retrieves the required Facebook AdSet or Google Campaign attribution information.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Parameters
+
+    + attributionModel: last_click (required, enum) - the attribution model, one per request.
+        + Members
+            + `last_click`
+            + `scientific`
+            + `first_click`
+    + startDate: `Example: 2020-05-12T10:00:00` (required, string) - the starting date to be taken to retrieve the attribution information. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+    + endDate: `Example: 2021-04-13T10:00:00` (required, string) - the ending date to be taken to retrieve the attribution information. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+    + level (required, enum) - attribution level to be considered for the report, one per request.
+        + Members
+            + `google_campaign`
+            + `google_v2_adgroup` - only available for google v2 integration
+            + `google_ad`
+            + `google_v2_keyword` - only available for google v2 integration
+            + `facebook_adset`
+            + `tiktok_adgroup`
+            + `snapchat_adsquad`
+            + `pinterest_adgroup`
+            + `twitter_adgroup`
+            + `bing_adgroup`
+            + `linkedin_campaign`
+            + `facebook_ad`
+            + `tiktok_ad`
+            + `snapchat_ad`
+            + `pinterest_ad`
+            + `bing_ad`
+    + fields (required, enum) - fields to indicate the information you want to obtain from the report, separated by a comma.
+        + Members
+            + `sales`
+            + `revenue`
+            + `calls`
+            + `total_revenue`
+            + `recurring_revenue`
+            + `refund`
+            + `unique_sales`
+            + `leads`
+            + `new_leads`
+            + `cost`
+            + `profit`
+            + `roi`
+            + `roas`
+            + `refund_count`
+            + `refund_sales_percentage`
+            + `refund_revenue_percentage`
+            + `cost_per_call`
+            + `cost_per_lead`
+            + `cost_per_sale`
+            + `cost_per_new_lead`
+            + `cost_per_unique_sale`
+            + `unique_customers`
+            + `unique_customers_revenue`
+            + `cost_per_unique_customer`
+            + `net_profit`
+            + `hard_costs`
+            + `qualified_calls`
+            + `unqualified_calls`
+            + `cost_per_qualified_call`
+            + `time_of_sale_attribution`
+            + `time_of_call_attribution`
+            + `clicks`
+            + `new_visits`
+            + `cost_per_new_visit`
+            + `cost_per_click`
+            + `reported`
+            + `reported_result`
+            + `shop_reported_result`
+            + `reported_vs_revenue`
+            + `new_customers_percentage`
+            + `recurring_customers`
+            + `total_customers`
+            + `customers`
+            + `ctr`
+            + `cpm`
+            + `cvr`
+            + `impressions`
+            + `gross_margins`
+            + `partial_video_views`
+            + `unique_calls`
+            + `canceled_calls`
+            + `cost_per_unique_call`
+            + `net_profit_percentage`
+            + `taxes`
+            + `cost_of_goods`
+            + `shipping_value`
+            + `30_days_ltv`
+            + `60_days_ltv`
+            + `90_days_ltv`
+            + `6_months_ltv`
+            + `1_year_ltv`
+            + `30_days_ltv_forecast`
+            + `60_days_ltv_forecast`
+            + `90_days_ltv_forecast`
+            + `6_months_ltv_forecast`
+            + `1_year_ltv_forecast`
+            + `churn_rate`
+            + `one_time_sales`
+            + `subscription_30_days_forecast`
+            + `subscription_60_days_forecast`
+            + `subscription_90_days_forecast`
+            + `subscription_6_months_forecast`
+            + `subscription_1_year_forecast`
+            + `cac`
+            + `aov`
+            + `new_subscriptions`
+            + `canceled_subscriptions`
+            + `direct_subscriptions`
+            + `new_mrr`
+            + `new_trials`
+            + `converted_trials`
+            + `canceled_trials`
+            + `cost_per_new_subscriptions`
+            + `cost_per_new_trials`
+            + `carts`
+            + `atc_events`
+            + `purchased_carts`
+            + `atc_cvr`
+            + `atc_rate`
+            + `cost_per_atc`
+            + `name`
+            + `parent_name`
+    + ids: `ids=205044496234,205044496235` (required, string) - Based on level, ids of which you want to retrieve information, separated by a comma. For example, if your `level` is `facebook_ad`, then place the ad id here. This field is not required when the level is "google_v2_keyword". This field can also represent an ad account id when the `isAdAccountId` parameter is `true` and only one id should be provided.
+    + keywordsIds: `keywordsIds=66457534290:[391764277422,10000010],76590307372:[10000010]` (optional, string) - Map of ad group ids (in the case of Google ads) and keywords for which you want to retrieve information, the keyword ids must be placed between brackets and separated by commas, after the ad group identifier
+    + currency: `user_currency` (optional, string) - the currency to be considered for the report.
+        + Default: `user_currency`
+        + Members
+            + `usd`
+            + `user_currency`
+    + dayOfAttribution (optional, boolean) - Defines if the date range will be used to filter sales within the range (false) or if it will be used to filter the clicks that ended up triggering them.
+        + Default: false
+    + scientificDaysRange (optional, number) - Day range (1-30) for first ad attribution (used for scientific attribution), default 30.
+    + sourceConfiguration (optional, enum[string]) - field to select the filter related with the organic sources that you want from the report. By default, it will use the ignore_organic value.
+        + Members
+            + `all_sources`
+            + `only_organic`
+            + `only_paid`
+            + `prioritize_organic`
+            + `prioritize_paid`
+    + ignoreRecurringSales (optional, boolean) - Defines if the response will include or exclude recurring sales.
+        + Default: false
+    + isAdAccountId (optional, boolean) - If true , the id placed in ids should be the ad account ID. All sources of the ad account will be paginated and included in the response, depending on the selected level.
+        + Default: false
+    + forecastingOption (optional, enum[string]) - This setting defines the way the LTV Forecast metric is calculated, either forecasting by using the first sale of a customer or attempting to use all of them. By default, only the first sale is used.
+        + Default: `first_sale`
+        + Members
+            + `first_sale`
+            + `total_sales`
+    + windowAttributionDaysRange (optional, number) - Days range for discard attribution (0-365), default 0.
+    + newCustomerConfiguration (optional, enum[string]) - field to select the filter related with the new customer configuration you want from the report. By default, it will use the all_customers value.
+        + Members
+            + `all_customers`
+            + `only_returning_customers`
+            + `only_unique_customers`
+    + status (optional, enum[string]) - Filters ad spend by status.
+        + Members
+            + `active`
+            + `paused`
+    + timeGroupingOption (optional, enum[string]) - Defines how the response will be grouped.
+        + Default: `source_link`
+        + Members
+            + `source_link`
+            + `day`
+            + `week`
+            + `month`
+            + `year`
+
+    + pageSize (optional, number) ... The maximum number of sources to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) ... The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more sources left to retrieve). Any changes to other request parameters will reset the pagination.
+
++ Notes
+
+    + When `isAdAccountId` is `true` and `timeGroupingOption` is one of `DAY`, `WEEK`, `MONTH` or `YEAR`, the request will fail with the following error:
+        + `Invalid configuration: segmented reports are not supported when isAdAccount is enabled`
+
+    + When `status` is `active` or `paused` and `timeGroupingOption` is one of `DAY`, `WEEK`, `MONTH` or `YEAR`, the request will fail with the following error:
+        + `Invalid request: adspend status filtering is only supported when timeGroupingOption is SOURCE_LINK.`
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "d3d80491c48140b89a23071d19c0f88f",
+                "result":[
+                    {
+                        "id":"205044496234",
+                        "revenue":997.00,
+                        "sales":10,
+                        "calls":5,
+                        "campaign_id": "23843648123456789"
+                    },
+                    {
+                        "id":"205044496235",
+                        "revenue":99.00,
+                        "sales":1,
+                        "calls":9,
+                        "campaign_id": "23843648123456780"
+                    }
+                ]
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + attributionModel:
+            + Missing required field: attributionModel
+            + Invalid attributionModel: <requested model>
+        + startDate:
+            + Missing required field: startDate
+            + Invalid start date
+        + endDate:
+            + Missing required field: endDate
+            + Invalid end date
+        + level:
+            + Missing required field: level
+            + Invalid level: <requested level>
+            + Unsupported level type
+        + fields:
+            + Missing required field: fields
+            + Invalid field: <requested fields>
+        + ids:
+            + Missing required field: ids
+        + currency:
+            + Invalid currency: <requested currency>
+        + scientificDaysRange:
+            + Invalid scientific days range: <requested range>
+        + Unspecified:
+            + There was a problem while processing the request
+        + send the same request before the first one is ready:
+            + Already processing a request for id: <id>
+         + timeGroupingOption:
+            + Invalid configuration: segmented reports are not supported when isAdAccount is enabled
+            + Invalid request: adspend status filtering is only supported when timeGroupingOption is SOURCE_LINK.
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Already processing a request for id: 111111111"]
+            }
+
+## Ad Account Attribution [/api/v1.0/attribution/ad-account?attributionModel={attributionModel}&startDate={startDate}&endDate={endDate}&fields={fields}&ids={ids}&currency={currency}&dayOfAttribution={dayOfAttribution}&scientificDaysRange={scientificDaysRange}]
+### Get Ad Accounts Attribution Report [GET]
+Retrieves the required Ad account attribution information.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Parameters
+
+    + attributionModel: (required, enum)
+      The attribution model, one per request.
+
+        + Members
+            + `last_click`
+            + `scientific`
+            + `first_click`
+    + startDate: `Example: 2020-05-12T10:00:00` (required, string) - the starting date to be taken to retrieve the attribution information. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+    + endDate: `Example: 2021-04-13T10:00:00` (required, string) - the ending date to be taken to retrieve the attribution information. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+    + fields (required, enum) - fields to indicate the information you want to obtain from the report, separated by a comma.
+        + Members
+            + `sales`
+            + `revenue`
+            + `calls`
+            + `total_revenue`
+            + `recurring_revenue`
+            + `refund`
+            + `unique_sales`
+            + `leads`
+            + `new_leads`
+            + `cost`
+            + `profit`
+            + `roi`
+            + `roas`
+            + `refund_count`
+            + `refund_sales_percentage`
+            + `refund_revenue_percentage`
+            + `cost_per_call`
+            + `cost_per_lead`
+            + `cost_per_sale`
+            + `cost_per_new_lead`
+            + `cost_per_unique_sale`
+            + `unique_customers`
+            + `unique_customers_revenue`
+            + `cost_per_unique_customer`
+            + `net_profit`
+            + `hard_costs`
+            + `qualified_calls`
+            + `unqualified_calls`
+            + `cost_per_qualified_call`
+            + `time_of_sale_attribution`
+            + `time_of_call_attribution`
+            + `clicks`
+            + `new_visits`
+            + `cost_per_new_visit`
+            + `cost_per_click`
+            + `reported`
+            + `reported_result`
+            + `shop_reported_result`
+            + `reported_vs_revenue`
+            + `new_customers_percentage`
+            + `recurring_customers`
+            + `total_customers`
+            + `customers`
+            + `ctr`
+            + `cpm`
+            + `cvr`
+            + `impressions`
+            + `gross_margins`
+            + `partial_video_views`
+            + `unique_calls`
+            + `canceled_calls`
+            + `cost_per_unique_call`
+            + `net_profit_percentage`
+            + `taxes`
+            + `cost_of_goods`
+            + `shipping_value`
+            + `30_days_ltv`
+            + `60_days_ltv`
+            + `90_days_ltv`
+            + `6_months_ltv`
+            + `1_year_ltv`
+            + `30_days_ltv_forecast`
+            + `60_days_ltv_forecast`
+            + `90_days_ltv_forecast`
+            + `6_months_ltv_forecast`
+            + `1_year_ltv_forecast`
+            + `churn_rate`
+            + `one_time_sales`
+            + `subscription_30_days_forecast`
+            + `subscription_60_days_forecast`
+            + `subscription_90_days_forecast`
+            + `subscription_6_months_forecast`
+            + `subscription_1_year_forecast`
+            + `cac`
+            + `aov`
+            + `new_subscriptions`
+            + `canceled_subscriptions`
+            + `direct_subscriptions`
+            + `new_mrr`
+            + `new_trials`
+            + `converted_trials`
+            + `canceled_trials`
+            + `cost_per_new_subscriptions`
+            + `cost_per_new_trials`
+            + `carts`
+            + `atc_events`
+            + `purchased_carts`
+            + `atc_cvr`
+            + `atc_rate`
+            + `cost_per_atc`
+    + ids: `ids=205044496234` (required, string) - The Ad Account id that you want to retrieve the attribution information of. Only 1 id is permitted".
+    + currency: `user_currency` (optional, string) - the currency to be considered for the report.
+        + Default: `user_currency`
+        + Members
+            + `usd`
+            + `user_currency`
+    + dayOfAttribution (optional, boolean) - Defines if the date range will be used to filter sales within the range (false) or if it will be used to filter the clicks that ended up triggering them.
+        + Default: false
+    + scientificDaysRange (optional, number) - Day range (1-30) for first ad attribution (used for scientific attribution), default 30.
+    + sourceConfiguration (optional, enum[string]) - field to select the filter related with the organic sources that you want from the report. By default, it will use the ignore_organic value.
+        + Members
+            + `all_sources`
+            + `only_organic`
+            + `only_paid`
+            + `prioritize_organic`
+            + `prioritize_paid`
+    + dateTimeGroupingOption (optional, enum[string]) - Defines how the response will be grouped, if there is no value present the default value is "ad_account"
+        + Members
+          + `ad_account`
+          + `day`
+          + `week`
+          + `month`
+          + `year`
+    + ignoreRecurringSales (optional, boolean) - Defines if the response will include or exclude recurring sales.
+        + Default: false
+    + forecastingOption (optional, enum[string]) - This setting defines the way the LTV Forecast metric is calculated, either forecasting by using the first sale of a customer or attempting to use all of them. By default, only the first sale is used.
+        + Default: `first_sale`
+        + Members
+            + `first_sale`
+            + `total_sales`
+    + windowAttributionDaysRange (optional, number) - Days range for discard attribution (0-365), default 0.
+    + newCustomerConfiguration (optional, enum[string]) - field to select the filter related with the new customer configuration you want from the report. By default, it will use the all_customers value.
+        + Members
+            + `all_customers`
+            + `only_returning_customers`
+            + `only_unique_customers`
+
++ Response 200 (application/json)
+
+    + Body
+
+          {
+            "result":[
+                {
+                    "id":"205044496234",
+                    "sales":64,
+                    "leads":0,
+                    "total_revenue":9283.41,
+                    "cost":9172.25,
+                    "cost_per_sale":143.32
+                    "start_date": "2020-05-12T10:00:00"
+                    "end_date": "2021-04-13T10:00:00"
+                }
+            ],
+            "request_id":"d9031a3780c14ecdb8ca3af5cd26bc91"
+          }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + startDate:
+            + Missing required field: startDate
+            + Invalid start date
+        + endDate:
+            + Missing required field: endDate
+            + Invalid end date
+        + level:
+            + Missing required field: level
+            + Invalid level: <requested level>
+        + fields:
+            + Missing required field: fields
+            + Invalid field: <requested fields>
+        + ids:
+            + Missing required field: ids
+            + Your request contains more than one ad account id
+        + currency:
+            + Invalid currency: <requested currency>
+        + scientificDaysRange:
+            + Invalid scientific days range: <requested range>
+        + Unspecified:
+            + There was a problem while processing the request
+        + send the same request before the first one is ready:
+            + Already processing a request for id: <id>
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Already processing a request for id: 111111111"]
+            }
+
+## Products [/api/v1.0/products]
+### Create [POST]
+
+Create a product with name, price and category, the tag will be created by using the product's name.
+
++ Attributes
+
+    + name (required, string) - name of the product.
+
+    + price (required, number) - cost of the product.
+
+    + category (optional, string) - category of the product.
+
+    + packages (optional, array) - product packages to which this item belongs to (this is used for recurring sales attribution).
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "name" : "Product 1",
+                "price" : 5.66,
+                "category" : "Category 1",
+                "packages" : ["Package 1", "Package 2"]
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + name:
+            + Missing required field: Name
+            + Name cannot be empty
+        + price:
+            + Price cannot be null
+            + Price not valid for Product
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Name cannot be empty"]
+            }
+
+## Tags [/api/v1.0/tags]
+### List all Tags [GET]
+
+List all of your created tags.
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "43573923369e40bbafd46925a5c15ff5",
+                "result": [
+                    "!tag1",
+                    "!tag2",
+                    "$sale1"
+                ]
+            }
+
+
++ Response 400 (application/json)
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Api key not valid"]
+            }
+
+# Sources [/api/v1.0/sources?adSourceIds={adSourcesIds}&includeOrganic={trueOrFalse}&includeDisregarded={trueOrFalse}&integrationType={type}&pageSize={size}&pageId={number}]
+### List all sources [GET]
+Search and retrieve sources by their organic and disregarded status and by the adSpendType/adSpendId.
+
++ Parameters
+
+    + adSourceIds (optional, array[string], `"adSourceId1","adSourceId2"`) ... The ad source ids of the sources to be retrieved
+
+    + includeOrganic (optional, boolean) - Whether to include organic sources in the response.
+
+    + includeDisregarded (optional, boolean) - Whether to include disregarded sources in the response.
+
+    + integrationType (optional, enum[AdspendType])
+      Provider of the source ids.
+        + Members
+            + `FACEBOOK`
+            + `GOOGLE`
+            + `TIKTOK`
+            + `SNAPCHAT`
+            + `LINKEDIN`
+            + `TWITTER`
+            + `PINTEREST`
+            + `BING`
+
+    + pageSize (optional, number) - The maximum number of sources to be retrieved in a single page. Should be between 0 and 250.
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned to the `nextPageId` field in every response (given that there are any more sales left to retrieve). Any changes to other request parameters will reset the pagination.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "name": "youtubeorganic",
+                        "tag": "@youtubeorganic",
+                        "disregarded": false,
+                        "organic": true,
+                        "trafficSource": {
+                            "id": "cat-5713eb35d222a576e5a7fa9ddba3424c",
+                            "name": "general"
+                        },
+                        "goal": {
+                            "id": "cat-1cb412f139ce7d0ab5d175baa1121dba",
+                            "name": "all"
+                        },
+                        "category": {
+                            "id": "cat-41b28df2ea6c85d56a940f15f85ab85f",
+                            "name": "no category"
+                        },
+                        "creationDate": 1677151375000
+
+                    },
+                    {
+                        "name": "offline conversions",
+                        "tag": "@offline-conversions",
+                        "disregarded": false,
+                        "organic": false,
+                        "adSource": {
+                            "adSourceId": "23843652874910293",
+                            "adAccountId": "923897907978784",
+                            "platform": "FACEBOOK"
+                        },
+                        "trafficSource": {
+                            "id": "cat-99444f9605562704afad35045a403150",
+                            "name": "facebook"
+                        },
+                        "goal": {
+                            "id": "cat-1cb412f139ce7d0ab5d175baa1121dba",
+                            "name": "all"
+                        },
+                        "category": {
+                            "id": "cat-c044d31f87bfb9ae9ade087da8583ee0",
+                            "name": "offline conversions"
+                        },
+                        "creationDate": 1677152849000
+                    }
+                ],
+                "nextPageId": "ae910fcb3d22e2b89bd69dbc92ed2ad6836f6a611cf0a5e53082222fe1055eb6",
+                "request_id": "cee7451ac5aa4dea84a10435d30ad111"
+            }
+
+
+## Ads [/api/v1.0/ads?adSourceIds={adSourceIds}&integrationType={type}&pageSize={size}&pageId={number}]
+### List all ads [GET]
+
+Search and retrieve ads by their adSpendType/adSpendId.
+
++ Parameters
+
+    + integrationType (optional, enum[AdspendType])
+      Provider of the source ids.
+        + Members
+            + `FACEBOOK`
+            + `GOOGLE`
+            + `TIKTOK`
+            + `SNAPCHAT`
+            + `LINKEDIN`
+            + `TWITTER`
+            + `PINTEREST`
+            + `BING`
+
+    + adSourceIds (optional, array, `"adSourceId1","adSourceId2"`) ... The ad source ids of the sources to be retrieved.
+
+    + pageSize (optional, number) ... The maximum number of sources to be retrieved in a single page. Should be between 0 and 250.
+
+    + pageId (optional, string) ... The id of the next page to be retrieved. This id is returned to the `nextPageId` field in every response (given that there are any more sales left to retrieve). Any changes to other request parameters will reset the pagination.
+
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "name": "test",
+                        "adSource": {
+                           "adSourceId": "123123123",
+                           "adAccountId": "923897907978784",
+                            "platform": "FACEBOOK"
+                        },
+                        "source": {
+                            "name": "offline conversions",
+                            "tag": "@offline-conversions",
+                            "disregarded": false,
+                            "organic": false,
+                            "adSource": {
+                                "adSourceId": "23843652874910293",
+                                "adAccountId": "923897907978784",
+                                "platform": "FACEBOOK"
+                            },
+                            "trafficSource": {
+                                "id": "cat-99444f9605562704afad35045a403150",
+                                "name": "facebook"
+                            },
+                            "goal": {
+                                "id": "cat-1cb412f139ce7d0ab5d175baa1121dba",
+                                "name": "all"
+                            },
+                            "category": {
+                                "id": "cat-c044d31f87bfb9ae9ade087da8583ee0",
+                                "name": "offline conversions"
+                            },
+                            "creationDate": 1677152849000
+                        },
+                        "creationDate": 1640995200000
+                    }
+                ],
+                "nextPageId": "ae910fcb3d22e2b89bd69dbc92ed2ad6836f6a611cf0a5e53082222fe1055eb6",
+                "request_id": "cee7451ac5aa4dea84a10435d30ad111"
+            }
+
+## Source [/api/v1.0/sources]
+### Create [POST]
+
+Create a source with all the necessary information, they can be organic, non-organic or from any of the ad tracking platforms (Google/Facebook).
+
++ Attributes
+
+    + name (required, string) - name of the product.
+
+    + category (optional, string) - name of the source category.
+
+    + goal (optional, string) - name of the goal.
+
+    + trafficSource (optional, string) - name of the traffic source.
+
+    + isDisregard (optional, boolean) - defines if the source is to be disregarded when attributing a sale.
+
+    + isOrganic (optional, boolean) - defines if the source is to be marked as an organic source.
+
+    + integrationType (optional, AdspendType) - name of the platform the ad belongs to. Possible values:
+
+    + adSourceId (optional, string) - id of the ad in the ad platform. Required if integrationType is present.
+        - For Facebook, the adset id.
+        - For Google, the campaign id.
+        - For TikTok, the ad group id.
+        - For Snapchat, the ad squad id.
+        - For LinkedIn, the campaign id.
+
+    + accountId (optional, string) - id of the ad account the ad belongs to. Required if integrationType is present.
+
+    + adspendSubType (optional, AdspendSubType) - Required when integrationType equals 'GOOGLE'. Indicates the type of the ad.
+
+    + campaignId (optional, string) - Required when integrationType equals 'FACEBOOK'. Id of the campaign the adset belongs to.
+
+
++ Request Creates an organic ad (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "name" : "Organic ad 1",
+                "category": "Instagram posts",
+                "goal": "opt ins",
+                "trafficSource": "organic",
+                "isOrganic": true
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Request Creates a Facebook ad (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "name" : "Facebook adset 1",
+                "integrationType": "FACEBOOK",
+                "adSourceId": "238xxxxxxxx300546"
+                "accountId": "32xxxxxxxx93135"
+                "campaignId": "238xxxxxxxx300546"
+            }
+
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + name:
+            + Invalid name
+        + integrationType:
+            + integrationType not valid
+            + Missing field: integrationType (if adSourceId was provided but not integrationType)
+        + adSourceId:
+            + Missing field: integrationType (if integrationType was provided but not adSourceId)
+            + Invalid adSourceId
+        + accountId:
+            + Missing required field: accountId (if integrationType was provided but not accountId)
+            + Invalid accountId
+        + adspendSubType:
+            + adspendSubType not valid
+            + Missing required field: adspendSubType (if integrationType = GOOGLE and adspendSubType was not provided)
+        + campaignId:
+            + Missing required field: campaignId (if integrationType = FACEBOOK and campaignId was not provided)
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid name"]
+            }
+
+## Custom cost [/api/v1.0/custom-costs]
+### Create [POST]
+
+Create a custom cost with all the necessary information.
+
++ Attributes
+
+    + name (optional, string) - A descriptive label for the cost (e.g., "Monthly Agency Fee"). This field is optional and may be omitted or left empty.
+
+    + startDate (required, string) - The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + endDate (optional, string) - The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + frequency: Values: `DAILY, ONE_TIME` (required, string) - indicates the frequency of the cost.
+
+    + cost (required, number) - The cost to be assigned. Must be greater than zero. The currency corresponds to the Hyros account settings.
+
+    + tags (required, array[string]) - Source tags to which the costs will be assigned. The maximum number of tags to be provided for search is 10.
+
++ Request Creates an custom cost (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "name": "Monthly Agency Fee",
+                "startDate": "2024-12-25T00:00:00.000Z",
+                "endDate": "2024-12-20T00:00:00.000Z",
+                "frequency": "DAILY",
+                "tags": ["@instagram","@facebook"],
+                "cost": "999.50"
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+## Click [/api/v1.0/clicks]
+### Create [POST]
+
+Creates a click containing the url the user clicked on and a session id representing the potential lead session.
+Optionally, the click can contain an email, which will be used to create a lead.
+Also, optionally the click can contain data from the ad it comes from.
+
++ Attributes
+
+    + referrerUrl (required, string) - The url for the click.
+
+    + sessionId (optional, string) - A string representing the lead session. This will be used to connect the different clicks to their lead, so it has to be unique for every lead or session.
+
+    + previousUrl (optional, string) - The url the lead was navigating before making the click.
+
+    + userAgent (optional, string) - A string representing the web browser the lead uses.
+
+    + ip (optional, string) - The IP address the click comes from. If provided, this can be very important to match clicks to their lead and track future sales.
+
+    + sourceLinkTag (optional, string) - A @tag representing the ad the click comes from. The ad will be created if it doesn't exist. Usually used for organic ads, (the tag needs to start with "@").
+
+    + isOrganic (optional, boolean) - Defines wheter the ad the click comes from is organic.
+
+    + integrationType (optional, AdspendType) - The platform the ad that generated the click belongs to.
+
+    + adSourceId (optional, string) - Id of the group of ads in the ad platform. Required if integrationType is present.
+        - For Facebook, the adset id.
+        - For Google, the campaign id.
+        - For TikTok, the ad group id.
+        - For Snapchat, the ad squad id.
+        - For LinkedIn, the campaign id.
+
+    + adspendAdId (optional, string) - Id of the ad in the ad platform. Only used for Facebook and Google for now.
+
+    + adSourceClickId (optional, string) - Id of the click in the ad platform. Used for generating offline conversions later on, only for Facebook, Google, TikTok and Snapchat.
+
+    + email (optional, string) - Email for the lead that generated the click.
+
+    + phones (optional, string, array[string]) - Phones for the lead that generated the click.
+
+    + tag (optional, string) - A tag to apply to the lead that generated the click.
+
+    + date: `Example: 2021-04-16T20:35:00` (optional, string) - The date where the click was made. Allowed formats:
+        - yyyy-MM-ddTHH:mm:ssZ
+        - yyyy-MM-ddTHH:mmZ
+        - yyyy-MM-ddTHH:mm:ss+HH:mm
+        - yyyy-MM-ddTHH:mm+HH:mm
+        - yyyy-MM-ddTHH:mm:ss
+        - yyyy-MM-ddTHH:mm
+        - yyyy-MM-dd
+
++ Request Creates a click for an organic ad (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "sessionId": "RWp7VmL3nlAi6zdG0KKQ",
+                "referrerUrl": "landing.page.com",
+                "previousUrl": "previous.url",
+                "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36",
+                "ip": "0.0.0.0",
+                "sourceLinkTag": "@facebook-post",
+                "isOrganic": true
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Request Creates a click for an ad from a platform (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "sessionId": "RWp7VmL3nlAi6zdG0KKQ",
+                "referrerUrl": "landing.page.com",
+                "previousUrl": "previous.url",
+                "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36",
+                "ip": "0.0.0.0",
+                "integrationType": "GOOGLE",
+                "adSourceId": 65xxxxxx28,
+                "adspendAdId": 48xxxxxx4652,
+                "adSourceClickId": "Cj0KxxxxxxKQBhCNARIsACUEW_bnG48x4BqrpP_dOT51MY_lp4xJADktAsW5ob5v3ugMFHSMg46chV4aAjTMEALw_wcB"
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Request Creates a click for an ad from a platform, for a lead (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+                "sessionId": "RWp7VmL3nlAi6zdG0KKQ",
+                "referrerUrl": "landing.page.com",
+                "previousUrl": "previous.url",
+                "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36",
+                "ip": "0.0.0.0",
+                "integrationType": "GOOGLE",
+                "adSourceId": 65xxxxxx28,
+                "adspendAdId": 48xxxxxx4652,
+                "adSourceClickId": "Cj0KxxxxxxKQBhCNARIsACUEW_bnG48x4BqrpP_dOT51MY_lp4xJADktAsW5ob5v3ugMFHSMg46chV4aAjTMEALw_wcB",
+                "email": "new.lead@mail.com",
+                "phones": ["202-555-0139"]
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + sessionId:
+            + Missing or invalid field: sessionId
+        + referrerUrl:
+            + Missing or invalid field: referrerUrl
+        + ip:
+            + Invalid Ip
+        + sourceLinkTag:
+            + Invalid field format: sourceLinkTag
+        + integrationType:
+            + integrationType not valid
+            + Missing field: integrationType (if adSourceId was provided but not integrationType)
+        + adSourceId:
+            + Missing field: integrationType (if integrationType was provided but not adSourceId)
+        + date:
+            + Invalid date format. Please, read the API documentation
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid Ip"]
+            }
+
+## Clicks [/api/v1.0/leads/clicks?leadId=leadId]
+### Retrieve Clicks [GET]
+
+Retrieve clicks belonging to a lead
+
++ Parameters
+
+    + leadId - The lead id.
+
+    + email -  The lead email.
+
+    + pageSize: (optional, number) - The maximum number of clicks to be retrieved in a single page. Should be between 0 and 250.
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more keyword left to retrieve). Any changes to other request parameters will reset the pagination.
+
+    + fromDate: `Example: 2025-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only clicks dated after this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + toDate: `Example: 2025-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only clicks dated before this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+   + Response 200 (application/json)
+
+   + Body
+
+           "result": [
+                   {
+                        "id": "fcdb598ccxf04025a2fxb2275a55952b",
+                        "date": "Mon Mar 24 21:37:58 UTC 2025",
+                        "trackedUrl": "https://www.test-page.com/product-page/test-product?fbc_id=123123133122223&h_ad_id=1231312313133&fbclid=PAZXh0bgNhZW0BXhZGlXAasah9MO9gIBpqWrXXqXtSTUJOL1mCpAFwMwSVo7eP8scO-Gxkt_qHJNKckg6pLtpfm2OQ_aem_r93bw0lb3n_mguv86vI8LA",
+                        "page": "https://www.test-page.com/product-page/test-product/",
+                        "previousUrl": "https://previousurl.com/",
+                        "adspendType": "FACEBOOK",
+                        "sourceLinkName": "Example sourceLink name",
+                        "ip": "0.0.0.0",
+                        "agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+                        "cartId": "d49b708b3df50505869ca54f026e7c97a4959b587605f14f91c7e289de9f80bd",
+                        "deduplicationParams": {"fbpId": "1231332","fbPixelEventId": "12312"},
+                        "adSpendId": 112331,
+                        "parsedParameters": {
+                            "fbc_id": "123123133122223",
+                            "h_ad_id": "1231312313133",
+                            "fbclid": "PAZXh0bgNhZW0BXhZGlXAasah9MO9gIBpqWrXXqXtSTUJOL1mCpAFwMwSVo7eP8scO-Gxkt_qHJNKckg6pLtpfm2OQ_aem_r93bw0lb3n_mguv86vI8LA"
+                        }
+                   },
+               ],
+               "nextPageId": "60846be6e2b1884a64d241caf085bf6c99fa59cc4e859d9a91f32333dc13dd03",
+               "request_id": "9d3683d845ea4633984a39eb86e3f047"
+
++ Response 400 (application/json)
+
+    + Possible errors:
+
+        + Search params:
+
+            + Missing required parameter: provide either 'leadId' or 'email'
+
+            + Please provide either 'leadId' or 'email', not both
+
+        + Unspecified:
+
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+
+                "result": "ERROR",
+
+                "message": ["There was a problem while processing the request."]
+
+            }
+
+## Cart [/api/v1.0/carts]
+### Create [POST]
+
+Create a cart with all necessary information. Additionally, creates the lead if not already present on the account.
+
++ Attributes
+    + cartId (optional, string) - the ID of the cart to be created, a default one will be created if it is not included.
+
+    + email (optional, string) - email associated with the lead that owns the cart.
+
+    + firstName (optional, string) - first name of the lead that owns the cart.
+
+    + lastName (optional, string) - last name of the lead that owns the cart.
+
+    + leadIps (optional, array[string]) - IPs of the customer that owns the cart. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + phoneNumbers (optional, string, array[string]) - phone numbers of the lead that owns the cart. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + date: `CST timezone example: 2021-04-16T20:35:00-06:00` (optional, string) - date on which the transaction was processed. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601). We also recommend attaching the desired timezone.
+        + Default: Current date and time.
+
+    + priceFormat: `DECIMAL, INTEGER` (optional, string) - the sale items price format, default to DECIMAL if it is not included.
+
+    + currency: `EUR` (optional,string).
+        + Default: Hyros account setup.
+
+    + items (required, array[CartItem]).
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+              "cartId": "d49b708b3df50505869ca54f026e7c97a4959b587605f14f91c7e289de9f80bd",
+              "email": "john@doe.com",
+              "firstName": "John",
+              "lastName": "Doe",
+              "date": "2021-09-06T12:00:12Z",
+              "currency": "USD",
+              "items" :[
+                {
+                  "name": "T-shirt-blue",
+                  "price": 9.5,
+                  "externalId" : 23456798,
+                  "quantity": 3,
+                  "sku": "DEPOR-XYZ-BLN-41"
+                },
+                {
+                  "name": "Jacket",
+                  "price": 55.9,
+                  "externalId" : 23456773,
+                  "quantity": 3,
+                  "sku": "DEPOR-XYZ-ZJE-99"
+                }
+              ],
+              "priceFormat": "DECIMAL",
+              "phoneNumbers": [
+                "2345678901",
+                "2345678902"
+              ],
+              "leadIps": [
+                "70.107.190.180"
+              ]
+            }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK",
+                "message": [
+                    "external_cart_id: d49b708b3df50505869ca54f026e7c97a4959b587605f14f91c7e289de9f80bd"
+                ]
+            }
+
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + date:
+            + Invalid date format. Please, read the API documentation
+        + currency:
+            + Invalid currency
+        + items:
+            + Items must be at least 1
+            + Missing required field: Items
+            + Name must be at least 3 characters long for Item X
+            + Missing required field Name for Item X
+            + Missing required field Price for Item X
+            + Price not valid for Item X
+            + Taxes not valid for Item X
+            + CostOfGoods not valid for Item X
+            + ItemDiscount not valid for Item X
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid date format. Please, read the API documentation"]
+            }
+
+### Update [PUT]
+
+Update a cart and its corresponding Lead with the information provided.
+
++ Parameters
+
+    + cartId (required, string) - the ID of the cart to be updated.
+
+    + items (required, array[CartItem]) - list of items in the cart.
+
+    + email (optional, string) - email associated with the lead that owns the cart.
+
+    + firstName (optional, string) - first name of the lead that owns the cart.
+
+    + lastName (optional, string) - last name of the lead that owns the cart.
+
+    + leadIps (optional, array[string]) - IPs of the customer that owns the cart. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + phoneNumbers (optional, array[string]) - phone numbers of the lead that owns the cart. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + date: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the transaction was processed. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + priceFormat: (optional, string)
+      The sale items price format
+        + Default: `DECIMAL`
+        + Members
+            + `DECIMAL`
+            + `INTEGER`
+
+    + currency: `EUR` (optional,string).
+        + Default: Hyros account setup.
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+            {
+              "cartId": "d49b708b3df50505869ca54f026e7c97a4959b587605f14f91c7e289de9f80bd",
+              "email": "john@doe.com",
+              "firstName": "John",
+              "lastName": "Doe",
+              "date": "2021-09-06T12:00:12Z",
+              "currency": "USD",
+              "items" :[
+                {
+                  "name": "T-shirt-red",
+                  "price": 9.5,
+                  "externalId" : 23456333,
+                  "quantity": 1,
+                  "sku": "DEPOR-XYZ-BLN-42"
+                },
+                {
+                  "name": "Pink Cord Mini Skirt",
+                  "price": 55.0,
+                  "externalId" : 13456053,
+                  "quantity": 1,
+                  "sku": "DEPOR-XYZ-LEM-13"
+                }
+              ],
+              "priceFormat": "DECIMAL",
+              "phoneNumbers": [
+                "2345678903",
+                "2345678904"
+              ],
+              "leadIps": [
+                "70.107.190.181"
+              ]
+            }
+
++ Response 200 (application/json)
+
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + cartId:
+            - You must provide a Cart ID
+        + date:
+            + Invalid date format. Please, read the API documentation
+        + currency:
+            + Invalid currency
+        + items:
+            + Items must be at least 1
+            + Missing required field: Items
+            + Name must be at least 3 characters long for Item X
+            + Missing required field Name for Item X
+            + Missing required field Price for Item X
+            + Price not valid for Item X
+            + Taxes not valid for Item X
+            + CostOfGoods not valid for Item X
+            + ItemDiscount not valid for Item X
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["You must provide a Cart ID"]
+            }
+
+## Retrieve User Information [/api/v1.0/user-info]
+### Retrieve User Information [GET]
+
+Search and retrieve user profile, user connected accounts and true tracking configuration.
+
++ Attributes
+
+    + userProfile - Object with email, first name, last name, company name, phone number, profile picture, user address, vat number, timezones and help notes and notifications config.
+
+    + allowedAccounts -  Collection of user accounts with permissions to access the user account
+
+    + accessibleAccounts -  Collection of user accounts where the user has permissions to access
+
+    + trueTrackingData - Map with the values of the metadata for true tracking configuration
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+   + Body
+
+           "result": {
+              "userProfile": {
+                  "email": "email@hyros.com",
+                  "firstName": "John",
+                  "lastName": "Doe",
+                  "phoneNumber": 123456789,
+                  "companyName": the company,
+                  "profilePicture": some-url.image.com,
+                  "vat": "141414141414",
+                  "helpNotes": false,
+                  "notificationsEnabled": "true",
+                  "timezone": "-05:00",
+                  "userAddress": {
+                      "street": "Jon Street",
+                      "city": "Doe City",
+                      "state": "Delaware",
+                      "zipCode": "19701"
+                  }
+              },
+
+              "allowedAccounts": [
+                  {
+                      "firstName": "Admin",
+                      "lastName": "User",
+                      "companyName": admin company,
+                      "email": "admin@hyros.com",
+                      "pictureUrl": some-url.image.com,
+                      "status": "PENDING"
+                  }
+              ],
+
+              "accessibleAccounts": [
+                  {
+                      "firstName": "New",
+                      "lastName": "User",
+                      "companyName": other company,
+                      "email": "user102@gmail.com",
+                      "pictureUrl": some-url.image.com,
+                      "status": "APPROVED"
+                  }
+              ],
+
+              "trueTrackingData": {
+                  "RECURRING_PRODUCTS_ENABLED": "true",
+                  "AUTOMATIC_SL_CREATION": "true",
+                  "REPEATED_CALLS_TOGGLE": "true",
+                  "AUTOMATIC_RECURRING_SALES_TIMEFRAME": "30,365",
+                  "ORIGIN_LEAD_ASSIGNATION_OPTIONS": "PHONE_NUMBER, SESSION_ID, IP, EXTERNAL_INTEGRATION",
+                  "PROCESS_RECURRING_SALES": "true",
+                  "AUTOMATIC_RECURRING_SALES_PRODUCT_BASED": "false",
+                  "TRACK_EU_CUSTOMERS": "true",
+                  "REPEATED_CALLS_TIMEFRAME": "20",
+                  "PENDING_CONVERSIONS_ATTRIBUTION_MODE": "LAST_CLICK",
+                  "SALE_GROUPING_TIMEFRAME": "10",
+                  "SALE_GROUPING_ENABLED": "true",
+                  "DISREGARD_SOURCE_TIMEFRAME": "72",
+                  "ADDRESS_INFORMATION_COLLECTED": "true",
+                  "PENDING_CONVERSIONS_IGNORE_ORGANIC_SOURCES": "true",
+                  "AUTOMATIC_RECURRING_SALES": "true",
+                  "LEAD_ATTRIBUTION_TIMEFRAME": "7"
+              }
+          },
+
+          "request_id": "a8f63f9b5073444397c9b8a2fe932fc7"
+
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + id:
+            + The api key provided does not return any user attached. This will cause issues retrieving all fields
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["There was a problem while processing the request."]
+            }
+
+## Keywords [/api/v1.0/keywords?adgroupId={adgroupId}&pageSize={size}&pageId={number}]
+### Retrieve Keywords [GET]
+
+List all your keywords, or those associated with a specific Google Ad Group Id, if the adgroupId parameter is provided.
+
++ Parameters
+
+    + adgroupId -  The ad group id.
+
+    + pageSize: (optional, number) - The maximum number of sources to be retrieved in a single page. Should be between 0 and 250.
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more keywords left to retrieve). Any changes to other request parameters will reset the pagination.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+   + Body
+
+           "result": [
+                   {
+                       "id": "#keyword_id",
+                       "name": "keyword_name",
+                       "adGroupId": "#adgroup_id",
+                       "adGroupName": "adgroup_name"
+                   },
+                   {
+                       "id": "#keyword_id",
+                       "name": "keyword_name",
+                       "adGroupId": "#adgroup_id",
+                       "adGroupName": "adgroup_name"
+                   }
+               ],
+               "nextPageId": "#next_page_id",
+               "request_id": "#request_id"
+
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + Google account is required:
+            + A valid Google_V2 account is required to fetch keywords
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["There was a problem while processing the request."]
+            }
+
+
+## Subscriptions [/api/v1.0/subscriptions]
+### Retrieve subscriptions [GET /api/v1.0/subscriptions?subscriptionStates={subscriptionStates}&fromDate={startDate}&toDate={endDate}&pageSize={size}&pageId={number}&ids={ids}&emails={emails}&leadIds={leadIds}&productTags={productTags}]
+
+Search and retrieve subscriptions by their join start date, end date, email, lead id, product tag, id and states.
+
++ Parameters
+
+    + ids (optional, array, `"id1", "id2"`) ... Array of subscriptions ids to be retrieved. At most 50 can be provided in a single request.
+
+    + emails (optional, array, `"email1", "email2"`) ... Array of emails or email prefixes to search subscriptions by. At most 50 can be provided.
+
+    + leadIds (optional, array, `"lead1", "lead2"`) ... Array of leadIds or leadId to search subscriptions by. At most 50 can be provided.
+
+    + productTags (optional, array, `"tag1", "tag2"`) ... Array of productTags or product tag to search subscriptions by. At most 20 can be provided.
+
+    + subscriptionStates (optional, array[SubscriptionStatus]) - indicates the status of subscriptions to be searched for.
+        + Default: empty, search all states.
+        + Members
+            + ACTIVE
+            + TRIALING
+            + CANCELED
+            + PAST_DUE
+            + INCOMPLETE
+            + INCOMPLETE_EXPIRED
+            + UNPAID
+            + COMPLETED
+            + PAUSED
+
+    + fromDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only subscriptions whose join date is more recent than this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + toDate: `Example: 2021-04-16T20:35:00-05:00` (optional, string) - An [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) formatted date. Only subscriptions whose join date is older that this will be retrieved. If the date does not include a timezone, the configured account timezone will be assumed.
+
+    + pageSize (optional, number) - The maximum number of subscriptions to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more subscriptions left to retrieve). Any changes to other request parameters will reset the pagination.
+
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+    + Example
+
+            https://api.hyros.com/v1/api/v1.0/subscriptions?fromDate=2024-08-24T00:00:00-03:00&toDate=2025-02-24T20:35:00-03:00&pageSize=25&pageId=2&ids='sle-0f74de33708def3e6684ebe672d68e3e4d74e72693d436376f7dd747916f3c73'&emails="John@doe.com"&leadIds="721d9b0edcd04536e97008a85b921e60ce4307c12c72c165693399abf6c7ddba"&productTags="$week-plan-8434"
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "id": "sle-db882bfed1b5280735eb03ac5b9be0c6edf04d7a52204d41f0c6cf6c28ad52234",
+                        "subscriptionId": "7016953413",
+                        "startDate": "Thu Nov 17 10:51:54 ART 2024",
+                        "endDate": "Thu Jan 17 10:51:54 ART 2025",
+                        "cancelAtDate": "Thu Jan 17 10:51:54 ART 2025",
+                        "trialStartDate": "Thu Nov 17 10:51:54 ART 2024",
+                        "trialEndDate": "Thu Nov 19 10:51:54 ART 2024",
+                        "price": 84.34,
+                        "status": "CANCELED",
+                        "periodicity": "WEEK",
+                        "planId": "WEEK8434",
+                        "tag": "$week-plan-8434";
+                        "name": "Week plan 84.34"
+                        "lead": {
+                            "email": "John@doe.com",
+                            "id": "6e7f85e73a49189f2cb30cc255304adb4d3b20a0bc26776a29bf2a861602078s",
+                            "creationDate": "Thu Nov 17 10:51:11 ART 2022",
+                            "ips": [
+                                "201.220.21.777"
+                            ],
+                            "tags": [
+                                "!clicked",
+                                "@testing",
+                                "$api-based-on-annual-payment",
+                                "$week-plan-8434"
+                            ]
+                        },
+                        "firstSource": {
+                            "sourceLinkId": "8e5c10ea09ed899f9e7a386501b8003e7fe8a0429633b0c1bf647ce92f51433a",
+                            "name": "testing",
+                            "tag": "@testing",
+                            "disregarded": false,
+                            "organic": false,
+                            "clickDate": "Thu Nov 19 10:51:11 ART 2025";
+                            "clickId": "fa4567fc3611afeb888e314298";
+                            "trafficSource": {
+                                "id": "cat-cc4342fa4567fc3611afeb888e31eba2",
+                                "name": "facebook"
+                            },
+                            "goal": {
+                                "id": "cat-909ba403c207fbdfb6344b96f3294342",
+                                "name": "all"
+                            },
+                            "category": {
+                                "id": "cat-b83d72b83a742f9bd8d93a2403ba3809",
+                                "name": "hyros test campaign 2"
+                            },
+                            "adSource": {
+                                "adSourceId": "23843648148170123",
+                                "adAccountId": "887874684917514",
+                                "platform": "FACEBOOK"
+                            },
+                            gclId: "24567781", //only for Google
+                            gbraId: "4525677", //only for Google
+                            wbraId: "4568789", //only for Google
+                        },
+                        "lastSource": {
+                            "sourceLinkId": "8e5c10ea09ed899f9e7a386501b8003e7fe8a0429633b0c1bf647ce92f51433a",
+                            "name": "testing",
+                            "tag": "@testing",
+                            "disregarded": false,
+                            "organic": false,
+                            "clickDate": "Thu Nov 20 10:51:11 ART 2025";
+                            "clickId": "fa4567fc3611afeb888e314298";
+                            "trafficSource": {
+                                "id": "cat-cc4342fa4567fc3611afeb888e31eba2",
+                                "name": "facebook"
+                            },
+                            "goal": {
+                                "id": "cat-909ba403c207fbdfb6344b96f3294342",
+                                "name": "all"
+                            },
+                            "category": {
+                                "id": "cat-b83d72b83a742f9bd8d93a2403ba3809",
+                                "name": "hyros test campaign 2"
+                            },
+                            "adSource": {
+                                "adSourceId": "23843648148170123",
+                                "adAccountId": "887874684917514",
+                                "platform": "FACEBOOK"
+                            },
+                            gclId: "24567781", //only for Google
+                            gbraId: "4525677", //only for Google
+                            wbraId: "4568789", //only for Google
+                        },
+                        "category": {
+                            "id": "cat-b83d72b83a742f9bd8d93a2403ba3809",
+                            "name": "API Week plan"
+                        },
+                        "provider": {
+                            "id": "9b1b1049ba4dd325f30ecd12e1ff";
+                            "integration": {
+                                  "id": "9ba4dd325fb9b130ecd1",
+                                  "name": "Stripe integration",
+                                  "externalIntegrationType": "STRIPE"
+                            }
+                        }
+                    }
+                ],
+                "nextPageId": "ae910fcb3d22e2b89bd69dbc92ed2ad6836f6a611cf0a5e53082222fe1055eb6",
+                "request_id": "cee7451ac5aa4dea84a10435d30ad111"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + ids:
+            + The maximum number of ids to be provided for search is 50
+        + emails:
+            + The maximum number of emails to be provided for search is 50
+        + leadIds:
+            + The maximum number of ids to be provided for search is 50
+        + productTags:
+            + The maximum number of product tags to be provided for search is 20
+        + from_date:
+            + Invalid date format. Please, read the API documentation
+        + to_date:
+            + Invalid date format. Please, read the API documentation
+        + pageSize:
+            + Page size must be between 1 and 250
+        + subscriptionStates:
+            + subscriptionStates is not valid
+        + Unspecified:
+            + There was a problem while processing the request
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid value for parameter: emails"]
+            }
+
+### Create [POST]
+
+Create an subscription with all necessary information. Additionally, creates the lead if not already present on the account.
+
++ Attributes
+
+    + email (optional, string) - email associated with the lead that owns the subscription. **If no email is entered, a phone number is required.**
+
+    + parentEmail (optional, string) - email of the origin lead of the lead that owns the subscription. If present, the lead with the email provided would be assigned as origin lead of the lead that owns the subscription and the subscriptions would be attributed to the origin lead.
+
+    + firstName (optional, string) - first name of the lead that owns the subscription.
+
+    + lastName (optional, string) - last name of the lead that owns the subscription.
+
+    + leadIps (optional, array[string]) - IPs of the customer that owns the subscription. Will be used on the Ad attributing process. This array can be sent empty.
+
+    + stage (optional, string) - The name of a stage to be applied to the customer's lead
+
+    + phoneNumbers (optional, string, array[string]) - phone numbers of the lead that owns the subscription. Will be used on the Ad attributing process. **At least one email or phone number is required.**
+
+    + subscriptionId (optional, string) - id of subscription.
+
+    + name (optional, string) - name of subscription.
+
+    + status (required, enum[SubscriptionStatus]) - indicates the status of the subscription.
+
+    + startDate: `Example: 2021-04-16T20:35:00` (required, string) - date on which the subscription started. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+        + Default: Current date and time.
+
+    + endDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the subscription ended. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + cancelAtDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the subscription was canceled. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + trialStartDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the trial period of the subscription started. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).\
+
+    + trialEndDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the trial period of the subscription ended. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + planId (optional, string) - unique identifier of the plan subscription coming from the external integration.
+
+    + price: `Example: 9.8` (required, number) - subscription price.
+
+    + periodicity: `Values: DAY, WEEK, MONTH, QUARTER, YEAR` (required, string) - the frequency at which a subscription is billed.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+              {
+                  "email":"john@doe.com",
+                  "parentEmail": "jane@doe.com",
+                  "firstName": "John",
+                  "lastName": "Doe",
+                  "leadIps": [
+                      "172.8.105.28"
+                  ],
+                  "stage": "Customer",
+                  "phoneNumbers": [
+                      "1105385366"
+                  ],
+                  "endDate": "2025-03-16T20:35:00",
+                  "priceFormat": "DECIMAL",
+                  "subscriptionId": "18294892740",
+                  "startDate": "2025-01-16T20:35:00",
+                  "trialStartDate": "2025-02-16T20:35:00",
+                  "planId": "IOJNF0293IRD9023JF0D",
+                  "price": "8.9",
+                  "periodicity": "MONTH",
+                  "status": "ACTIVE",
+                  "name": "Monthly Subscription Active"
+              }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + email:
+            + The Email is not valid
+            + Make sure that at least an email or a phone number is added
+        + parentEmail:
+            + The parentEmail is not valid
+        + phoneNumbers:
+            + Make sure that at least an email or a phone number is added
+        + startDate:
+            + Invalid date format. Please, read the API documentation
+        + endDate:
+            + Invalid date format. Please, read the API documentation
+        + cancelAtDate:
+            + Invalid date format. Please, read the API documentation
+        + trialStartDate:
+            + Invalid date format. Please, read the API documentation
+        + trialEndDate:
+            + Invalid date format. Please, read the API documentation
+        + price:
+            + Invalid price format. Please, read the API documentation
+        + periodicity:
+            + periodicity is not valid
+        + status:
+            + status is not valid
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Make sure that at least an email or a phone number is added"]
+            }
+
+### Update [PUT]
+
+Update a subscription.
+
++ Parameters
+
+    + ids (required, array) - array of subscriptions ids to be updated. At most 50 can be provided in a single request.
+
+    + name (optional, string) - name of subscription.
+
+    + status (optional, enum[SubscriptionStatus]) - indicates the status of the subscription.
+
+    + startDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the subscription started. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+        + Default: Current date and time.
+
+    + endDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the subscription ended. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + cancelAtDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the subscription was canceled. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + trialStartDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the trial period of the subscription started. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).\
+
+    + trialEndDate: `Example: 2021-04-16T20:35:00` (optional, string) - date on which the trial period of the subscription ended. The date must be written in accordance with [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601).
+
+    + price: `Example: 9.8` (required, number) -  subscription price.
+
+
++ Request (application/json)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Body
+
+              {
+                 "ids": ["subscriptionId"],
+                 "status": "CANCELED",
+                 "name": "Monthly Subscription Active",
+                 "startDate": "2025-01-16T20:35:00",
+                 "endDate": "2025-03-16T20:35:00",
+                 "trialStartDate": "2025-02-16T20:35:00",
+                 "trialEndDate": "2025-03-16T20:35:00",
+                 "cancelAtDate": "2025-03-16T20:35:00",
+              }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "request_id": "78c6d764d40547928ae36fd2d0103252",
+                "result": "OK"
+            }
+
++ Response 400 (application/json)
+
+    + Possible errors:
+        + ids:
+            + The maximum number of ids to be provided for update is 50
+        + startDate:
+            + Invalid date format. Please, read the API documentation
+        + endDate:
+            + Invalid date format. Please, read the API documentation
+        + cancelAtDate:
+            + Invalid date format. Please, read the API documentation
+        + trialStartDate:
+            + Invalid date format. Please, read the API documentation
+        + trialEndDate:
+            + Invalid date format. Please, read the API documentation
+        + price:
+            + Invalid price format. Please, read the API documentation
+        + status:
+            + status is not valid
+        + Unspecified:
+            + There was a problem while processing the request
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Invalid date format. Please, read the API documentation"]
+            }
+
+## Tracking Script [/api/v1.0/tracking-script{?domain,spa,ignorePrevUrl,embed,deleteTrackingScriptParams}]
+### Get Tracking Script [GET]
+
+Retrieves the tracking script for a given domain. If no domain is provided, it returns the default tracking script.
+
+The script can be customized with optional parameters to enable SPA tracking, ignore previous URLs, embed on iframes, or hide tracking parameters.
+
++ Parameters
+
+    + domain (optional, string) - The domain for which to retrieve the tracking script. If not provided, the default tracking script will be returned.
+
+    + spa (optional, boolean) - Enables tracking of clicks and emails on URL change for Single Page Applications (SPA). When true, adds `&spa=true` to the script URL. Defaults to false.
+
+    + ignorePrevUrl (optional, boolean) - When true, ignores sources from the previous URL during attribution. Adds `&ignorePrevUrl=true` to the script URL. Defaults to false.
+
+    + embed (optional, boolean) - When true, embeds the Universal script on iframes. Adds `&embed=true` to the script URL. Defaults to false.
+
+    + deleteTrackingScriptParams (optional, boolean) - When true, the Universal Script will automatically hide the tracking parameters in the URL after use, to avoid detection by leads or anti-tracking software. This setting is persisted as user metadata.
+
++ Request (Without optional parameters)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (text/plain)
+
+    + Body
+
+              <script>
+                  var head = document.head;
+                  var script = document.createElement('script');
+                  script.type = 'text/javascript';
+                  script.src = "https://api.hyros.com/v1/lst/universal-script?ph=a48210e63e83136228b90e18c16461c07ba3c7bee05ba64615ecae4edcf9d130&tag=!clicked&ref_url=" + encodeURIComponent(document.URL);
+                  head.appendChild(script);
+              </script>
+
++ Request (With optional parameters)
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
+    + Example
+
+            https://api.hyros.com/v1/api/v1.0/tracking-script?domain=example.com&spa=true&ignorePrevUrl=true&embed=true&deleteTrackingScriptParams=true
+
++ Response 200 (text/plain)
+
+    + Body
+
+              <script>
+                  var head = document.head;
+                  var script = document.createElement('script');
+                  script.type = 'text/javascript';
+                  script.src = "https://api.hyros.com/v1/lst/universal-script?ph=a48210e63e83136228b90e18c16461c07ba3c7bee05ba64615ecae4edcf9d130&tag=!clicked&spa=true&ignorePrevUrl=true&embed=true&ref_url=" + encodeURIComponent(document.URL);
+                  head.appendChild(script);
+              </script>
+
++ Response 400 (text/plain)
+
+    + Possible errors:
+        + Invalid domain: Invalid domain.com
+
+    + Body (text/plain)
+
+               Tracking script error: Invalid domain: domain.com
+
+## Domains [/api/v1/domains]
+### Get Domains [GET]
+
+Retrieves a list of verified domains associated with the product.
+
++ Headers
+
+        API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            ["domain1.example.com","domain2.example.com"]
+
++ Response 401 (application/json)
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Api key not valid"]
+            }
+
+## Stages [/api/v1.0/stages?pageSize={size}&pageId={number}&name={name}]
+### Retrieve Lead Stages [GET]
+
+Retrieves all lead stages for the account, along with the count of leads in each stage.
+
++ Parameters
+
+    + name (optional, string, `stage1`) ... The name to search stages by.
+
+    + pageSize (optional, number) - The maximum number of stages to be retrieved in a single page.
+        + Range: 1-250
+
+    + pageId (optional, string) - The id of the next page to be retrieved. This id is returned in the `nextPageId` field in every response (given that there are any more calls left to retrieve). Any changes to other request parameters will reset the pagination.
+
++ Request
+
+    + Headers
+
+            API-Key: b12a19f4521d44abc8d613efca7f9c23c88
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "result": [
+                    {
+                        "name": "SQL",
+                        "amount": 1,
+                    },
+                    {
+                        "name": "Java",
+                        "amount": 1,
+                    },
+                    {
+                        "name": "React",
+                        "amount": 1,
+                    }
+                ],
+                "nextPageId": "1073e129b360b78db3508bea584d1f295c7851c3d9b290308ac57528b6e38a21",
+                "request_id": "5696f9a3524e42318f3cdf40176e70e3"
+            }
+
++ Response 401 (application/json)
+
+    + Body
+
+            {
+                "result": "ERROR",
+                "message": ["Api key not valid"]
+            }
+
+

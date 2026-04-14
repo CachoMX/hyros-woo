@@ -1,6 +1,215 @@
-/* HyrosWoo Admin Styles — native WP admin only */
+/* HyrosWoo Admin Styles — native WP admin colors only, no external frameworks */
 
-/* Notice banners */
+/* =========================================================================
+   Layout
+   ========================================================================= */
+
+.hyros-wrap { max-width: 1200px; }
+
+.hyros-page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.hyros-page-header h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.hyros-page-header .hyros-logo {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.hyros-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.hyros-grid--full {
+    grid-template-columns: 1fr;
+}
+
+@media (max-width: 782px) {
+    .hyros-grid { grid-template-columns: 1fr; }
+}
+
+/* =========================================================================
+   Card Component
+   ========================================================================= */
+
+.hyros-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+}
+
+.hyros-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.hyros-card__header h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.hyros-card__body { padding: 16px; }
+
+.hyros-card__footer {
+    padding: 12px 16px;
+    background: #f6f7f7;
+    border-top: 1px solid #c3c4c7;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* =========================================================================
+   Account Info Card
+   ========================================================================= */
+
+.hyros-account-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.hyros-account-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2271b1;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: 1px;
+}
+
+.hyros-account-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hyros-account-text strong {
+    font-size: 15px;
+    color: #1d2327;
+}
+
+.hyros-account-text span {
+    font-size: 12px;
+    color: #50575e;
+}
+
+.hyros-account-detail dl {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 6px 8px;
+    margin: 0;
+}
+
+.hyros-account-detail dt {
+    font-size: 12px;
+    color: #50575e;
+    font-weight: 600;
+    padding: 0;
+    align-self: center;
+}
+
+.hyros-account-detail dd {
+    margin: 0;
+    font-size: 12px;
+    color: #1d2327;
+    align-self: center;
+}
+
+.hyros-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #f0f0f1;
+    border: 1px solid #dcdcde;
+    border-radius: 3px;
+    font-size: 11px;
+    color: #1d2327;
+}
+
+.hyros-tag--green {
+    background: #f0f6e9;
+    border-color: #68de7c;
+    color: #1a7332;
+}
+
+.hyros-tag--blue {
+    background: #f0f6fc;
+    border-color: #72aee6;
+    color: #1d4b7a;
+}
+
+.hyros-tag--warning {
+    background: #fcf9e8;
+    border-color: #dba617;
+    color: #7a5c00;
+}
+
+/* =========================================================================
+   Settings Form
+   ========================================================================= */
+
+.hyros-form-row {
+    margin-bottom: 16px;
+}
+
+.hyros-form-row:last-child { margin-bottom: 0; }
+
+.hyros-form-row label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #1d2327;
+    font-size: 13px;
+}
+
+.hyros-form-row .description {
+    margin-top: 5px;
+    color: #50575e;
+    font-size: 12px;
+}
+
+.hyros-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.hyros-domain-status {
+    color: #50575e;
+    font-size: 12px;
+}
+
+/* =========================================================================
+   Notice, Badge, Status spans
+   ========================================================================= */
+
 .hyros-notice {
     padding: 10px 14px;
     margin: 12px 0;
@@ -8,67 +217,147 @@
     background: #fff;
     font-size: 13px;
 }
-.hyros-notice-success {
-    border-color: #46b450;
-    color: #155724;
-    background: #f0fff1;
-}
-.hyros-notice-error {
-    border-color: #dc3232;
-    color: #721c24;
-    background: #fff0f0;
-}
+.hyros-notice-success { border-color: #00a32a; color: #1a7332; background: #f0f6e9; }
+.hyros-notice-error   { border-color: #d63638; color: #721c24; background: #fcf0f1; }
 
-/* Inline status spans */
-.hyros-ok {
-    color: #46b450;
-    font-weight: 600;
-    margin-left: 8px;
-}
-.hyros-error {
-    color: #dc3232;
-    font-weight: 600;
-    margin-left: 8px;
-}
+.hyros-ok    { color: #00a32a; font-weight: 600; margin-left: 8px; }
+.hyros-error { color: #d63638; font-weight: 600; margin-left: 8px; }
 
-/* Connection badge in page title */
 .hyros-connection-badge {
-    display: inline-block;
-    font-size: 13px;
-    font-weight: normal;
-    padding: 2px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
     border-radius: 12px;
-    margin-left: 12px;
-    vertical-align: middle;
     border: 1px solid #ddd;
 }
-.hyros-badge-ok {
-    color: #46b450;
-    border-color: #46b450;
-    background: #f0fff1;
-}
-.hyros-badge-error {
-    color: #dc3232;
-    border-color: #dc3232;
-    background: #fff0f0;
-}
-.hyros-badge-unknown {
-    color: #888;
-    border-color: #ddd;
-    background: #f9f9f9;
+.hyros-badge-ok      { color: #00a32a; border-color: #68de7c; background: #f0f6e9; }
+.hyros-badge-error   { color: #d63638; border-color: #f86368; background: #fcf0f1; }
+.hyros-badge-unknown { color: #50575e; border-color: #c3c4c7; background: #f6f7f7; }
+
+.hyros-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
 }
 
-/* Log table — failed rows */
-.hyros-log-table .hyros-row-failed td {
-    color: #dc3232;
-}
+/* =========================================================================
+   Activity Log Table
+   ========================================================================= */
 
-/* Order meta box */
-.hyros-order-meta {
-    margin-top: 10px;
+.hyros-log-table {
+    border-collapse: collapse;
+    width: 100%;
     font-size: 13px;
 }
-.hyros-order-meta .hyros-ok,
-.hyros-order-meta .hyros-error {
+
+.hyros-log-table th {
+    text-align: left;
+    padding: 8px 10px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+    font-weight: 600;
+    color: #1d2327;
     font-size: 12px;
 }
+
+.hyros-log-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f1;
+    vertical-align: top;
+    color: #1d2327;
+}
+
+/* Color-coded rows */
+.hyros-log-row--success td:first-child { border-left: 3px solid #00a32a; }
+.hyros-log-row--success                { background: #f0f6e9; }
+.hyros-log-row--failed  td:first-child { border-left: 3px solid #d63638; }
+.hyros-log-row--failed                 { background: #fcf0f1; }
+.hyros-log-row--retry   td:first-child { border-left: 3px solid #dba617; }
+.hyros-log-row--retry                  { background: #fcf9e8; }
+.hyros-log-row--info    td:first-child { border-left: 3px solid #72aee6; }
+.hyros-log-row--info                   { background: #f0f6fc; }
+
+/* Detail expand rows */
+.hyros-log-detail-row td {
+    padding: 0 10px 10px 24px;
+    background: inherit;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.hyros-log-detail-row dl {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 4px 8px;
+    margin: 8px 0 0;
+    font-size: 12px;
+}
+
+.hyros-log-detail-row dt { color: #50575e; font-weight: 600; }
+.hyros-log-detail-row dd { margin: 0; color: #1d2327; word-break: break-all; }
+
+.hyros-log-detail-toggle {
+    background: none;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #50575e;
+    line-height: 1.6;
+}
+
+.hyros-log-detail-toggle:hover { border-color: #2271b1; color: #2271b1; }
+
+.hyros-log-event { font-weight: 500; }
+.hyros-log-count { font-size: 12px; color: #50575e; font-weight: normal; }
+
+/* =========================================================================
+   Tracking option toggles
+   ========================================================================= */
+
+.hyros-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0;
+}
+
+.hyros-toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.hyros-toggle-row input[type="checkbox"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.hyros-toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-weight: 500;
+    color: #1d2327;
+}
+
+.hyros-toggle-hint {
+    font-weight: normal;
+    font-size: 12px;
+    color: #50575e;
+}
+
+/* =========================================================================
+   Order meta box (WC order detail page)
+   ========================================================================= */
+
+.hyros-order-meta { margin-top: 10px; font-size: 13px; }
+.hyros-order-meta .hyros-ok,
+.hyros-order-meta .hyros-error { font-size: 12px; }

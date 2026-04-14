@@ -2,8 +2,10 @@
 Contributors: vixillc
 Tags: woocommerce, hyros, tracking, analytics, subscriptions
 Requires at least: 5.8
-Tested up to: 6.5
-Stable tag: 1.0.0
+Tested up to: 6.8
+WC requires at least: 6.0
+WC tested up to: 9.9
+Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPL-2.0+
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -24,7 +26,6 @@ HyrosWoo provides a robust, production-ready bridge between WooCommerce and the 
 
 * Refund tracking via DELETE /orders endpoint
 * API key fallback via `HYROS_API_KEY` constant in `wp-config.php`
-* Rate-limited script refresh (60-second cooldown) to avoid API abuse
 * Masked API key display — your key is never shown in full in the admin UI
 * Zero external dependencies — uses only WordPress and WooCommerce core APIs
 
@@ -40,6 +41,15 @@ Optionally, define your API key in `wp-config.php` for added security:
 
 == Changelog ==
 
+= 1.1.0 =
+* Security hardening for tracking script validation and admin capabilities.
+* Added consent-aware tracking toggle (`Require Marketing Consent`).
+* Added script injection toggle for stores using tag managers or theme-level script insertion.
+* Improved retry handling with retryable/non-retryable classification and Retry-After support.
+* Fixed refund lifecycle to support multiple partial refunds safely.
+* Improved abandoned-cart capture reliability and response handling.
+* Added dedicated Hyros log table with retention pruning and compatibility fallback.
+
 = 1.0.0 =
 * Initial release.
 * Server-side order tracking via POST /orders.
@@ -48,5 +58,4 @@ Optionally, define your API key in `wp-config.php` for added security:
 * Auto script injection into `<head>`.
 * Deduplication via `_hyros_tracked` order meta.
 * Global activity log (last 200 entries) with per-order view in WC admin.
-* Rate-limited script refresh with 60-second transient cooldown.
 * API key constant fallback (`HYROS_API_KEY` in wp-config.php).
