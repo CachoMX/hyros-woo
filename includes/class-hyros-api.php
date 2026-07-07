@@ -145,7 +145,8 @@ class Hyros_API {
         $body = is_array($response['data']) ? $response['data'] : [];
         return [
             'success'     => true,
-            'hyros_id'    => self::extract_hyros_id($body),
+            // Refund responses return request_id; there is no Hyros entity id for the refund itself.
+            'hyros_id'    => '',
             'request_id'  => isset($body['request_id']) ? (string) $body['request_id'] : '',
             'error'       => '',
             'status_code' => $response['status_code'],

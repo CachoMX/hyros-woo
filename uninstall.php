@@ -4,6 +4,7 @@ defined('WP_UNINSTALL_PLUGIN') || exit;
 delete_option('hyros_woo_api_key');
 delete_option('hyros_woo_selected_script');
 delete_option('hyros_woo_selected_domain');
+delete_option('hyros_woo_allowed_domains');
 delete_option('hyros_woo_recent_logs');
 delete_option('hyros_woo_permanently_failed_count');
 delete_option('hyros_woo_track_sales');

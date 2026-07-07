@@ -141,12 +141,54 @@ class Hyros_Settings {
     }
 
     /**
+     * Normalize host values before comparisons.
+     */
+    private static function normalize_host(string $value): string {
+        $value = trim(strtolower($value));
+        if ('' === $value) {
+            return '';
+        }
+
+        $host = wp_parse_url($value, PHP_URL_HOST);
+        if (!empty($host)) {
+            return strtolower((string) $host);
+        }
+
+        // Handle plain hosts without scheme, e.g. "data.example.com".
+        return strtolower((string) preg_replace('#^https?://#', '', $value));
+    }
+
+    /**
+     * Return allowed custom tracking hosts previously returned by Hyros /domains.
+     *
+     * @return string[]
+     */
+    private static function get_allowed_custom_hosts(): array {
+        $domains = get_option('hyros_woo_allowed_domains', []);
+        if (!is_array($domains)) {
+            return [];
+        }
+
+        $hosts = [];
+        foreach ($domains as $domain) {
+            $host = self::normalize_host((string) $domain);
+            if ('' !== $host) {
+                $hosts[] = $host;
+            }
+        }
+
+        return array_values(array_unique($hosts));
+    }
+
+    /**
      * Validate that script content matches the expected Hyros tracking script format.
      *
-     * We intentionally accept only one script block that sets script.src to a Hyros host.
+     * We intentionally accept only one script block that sets script.src to:
+     * - a Hyros host (*.hyros.com), or
+     * - a verified custom tracking domain returned by /domains.
      * This prevents arbitrary JavaScript persistence in wp_options.
      */
-    public static function is_valid_tracking_script(string $script_content): bool {
+    public static function is_valid_tracking_script(string $script_content, string $expected_host = ''): bool {
         $script_content = trim($script_content);
         if ('' === $script_content) {
             return true;
@@ -176,7 +218,18 @@ class Hyros_Settings {
         }
 
         $host = strtolower((string) $parsed['host']);
-        return ('hyros.com' === $host || substr($host, -10) === '.hyros.com');
+        if ('hyros.com' === $host || substr($host, -10) === '.hyros.com') {
+            return true;
+        }
+
+        $allowed_custom_hosts = self::get_allowed_custom_hosts();
+
+        $expected = self::normalize_host($expected_host);
+        if ('' !== $expected && in_array($expected, $allowed_custom_hosts, true) && hash_equals($expected, $host)) {
+            return true;
+        }
+
+        return in_array($host, $allowed_custom_hosts, true);
     }
 
     // -------------------------------------------------------------------------
@@ -228,7 +281,15 @@ class Hyros_Settings {
         // Fetch domains.
         $domains_result = $api->get_domains();
         if ($domains_result['success'] && !empty($domains_result['domains'])) {
-            $payload['domains']  = $domains_result['domains'];
+            $sanitized_domains = array_values(array_filter(array_map(static function ($domain): string {
+                return self::normalize_host((string) $domain);
+            }, $domains_result['domains'])));
+
+            if (!empty($sanitized_domains)) {
+                update_option('hyros_woo_allowed_domains', $sanitized_domains, false);
+            }
+
+            $payload['domains']  = $sanitized_domains;
             $payload['message'] .= ' ' . __('Select a domain to load its tracking script.', 'hyros-woo');
         } else {
             // No domains — load default tracking script.
@@ -258,16 +319,26 @@ class Hyros_Settings {
         }
 
         $domain = sanitize_text_field(wp_unslash($_POST['domain'] ?? ''));
+        $normalized_domain = self::normalize_host($domain);
+        if ('' === $normalized_domain) {
+            wp_send_json_error(['message' => __('Invalid domain selected.', 'hyros-woo')]);
+            return;
+        }
+        if (!in_array($normalized_domain, self::get_allowed_custom_hosts(), true)) {
+            wp_send_json_error(['message' => __('Selected domain is not in your Hyros domain list.', 'hyros-woo')]);
+            return;
+        }
+
         $api    = new Hyros_API(self::get_api_key());
-        $result = $api->get_tracking_script($domain);
+        $result = $api->get_tracking_script($normalized_domain);
 
         if ($result['success'] && !empty($result['script'])) {
-            if (!self::is_valid_tracking_script($result['script'])) {
+            if (!self::is_valid_tracking_script($result['script'], $normalized_domain)) {
                 wp_send_json_error(['message' => __('Loaded tracking script failed security validation.', 'hyros-woo')]);
                 return;
             }
             update_option('hyros_woo_selected_script', $result['script'], false);
-            update_option('hyros_woo_selected_domain', $domain, false);
+            update_option('hyros_woo_selected_domain', $normalized_domain, false);
             wp_send_json_success([
                 'message' => __('Tracking script loaded.', 'hyros-woo'),
                 'script'  => $result['script'],
@@ -290,8 +361,9 @@ class Hyros_Settings {
 
         $api_key        = sanitize_text_field(wp_unslash($_POST['api_key'] ?? ''));
         $script_content = wp_unslash($_POST['script_content'] ?? '');
+        $selected_domain = (string) get_option('hyros_woo_selected_domain', '');
 
-        if (!self::is_valid_tracking_script($script_content)) {
+        if (!self::is_valid_tracking_script($script_content, $selected_domain)) {
             wp_send_json_error(['message' => __('Invalid tracking script format. Load it via API/domain validation.', 'hyros-woo')]);
             return;
         }

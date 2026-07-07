@@ -4,3 +4,6 @@ dist/hyros-woo/
 # OS/editor
 .DS_Store
 Thumbs.db
+
+# Local temp / test artifacts
+.tmp/

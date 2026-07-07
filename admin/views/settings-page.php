@@ -351,6 +351,7 @@ $logo_url = HYROS_WOO_PLUGIN_URL . 'admin/images/hyros-logo.svg';
                                 __('IP', 'hyros-woo')         => $parsed['ip'],
                                 __('Cart ID', 'hyros-woo')    => $parsed['cart_id'],
                                 __('Hyros ID', 'hyros-woo')   => $parsed['hyros_id'],
+                                __('Request ID', 'hyros-woo') => $parsed['request_id'],
                                 __('Raw Detail', 'hyros-woo') => $parsed['detail'],
                             ]);
                             $has_details = !empty($detail_items);

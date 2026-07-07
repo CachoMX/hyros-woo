@@ -1,5 +1,5 @@
 === HyrosWoo ===
-Contributors: vixillc
+Contributors: carlosaragon
 Tags: woocommerce, hyros, tracking, analytics, subscriptions
 Requires at least: 5.8
 Tested up to: 6.8

@@ -371,7 +371,7 @@ class Hyros_Logger {
      *
      * @param array $entry
      * @return array{label: string, items_summary: string, total: string, currency: string,
-     *               phone: string, ip: string, cart_id: string, hyros_id: string, detail: string}
+     *               phone: string, ip: string, cart_id: string, hyros_id: string, request_id: string, detail: string}
      */
     public static function parse_detail_for_display(array $entry): array {
         $event = $entry['event'] ?? '';
@@ -384,6 +384,7 @@ class Hyros_Logger {
             'ip'            => '',
             'cart_id'       => '',
             'hyros_id'      => '',
+            'request_id'    => '',
             'detail'        => $entry['detail'] ?? '',
         ];
 
@@ -397,6 +398,7 @@ class Hyros_Logger {
                 'ip'            => $entry['meta']['ip'] ?? '',
                 'cart_id'       => $entry['meta']['cart_id'] ?? '',
                 'hyros_id'      => $entry['meta']['hyros_id'] ?? '',
+                'request_id'    => $entry['meta']['request_id'] ?? '',
             ]);
         }
 
@@ -406,6 +408,9 @@ class Hyros_Logger {
 
         if (preg_match('/Hyros ID:\s*([^\s|]+)/', $detail, $m)) {
             $parsed['hyros_id'] = $m[1];
+        }
+        if (preg_match('/Request ID:\s*([^\s|]+)/', $detail, $m)) {
+            $parsed['request_id'] = $m[1];
         }
         if (preg_match('/cartId:\s*([^\s|]+)/', $detail, $m)) {
             $parsed['cart_id'] = $m[1];
@@ -426,6 +431,10 @@ class Hyros_Logger {
      * @return string
      */
     public static function row_class(string $event): string {
+        if (0 === strpos($event, 'refund_')) {
+            // Refunds are negative business events and should stand out in red.
+            return 'hyros-log-row--failed';
+        }
         if (strpos($event, 'failed') !== false || strpos($event, 'permanently') !== false) {
             return 'hyros-log-row--failed';
         }

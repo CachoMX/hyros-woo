@@ -4,8 +4,8 @@
  * Plugin URI:  https://github.com/CachoMX/hyros-woo
  * Description: Production-ready WooCommerce to Hyros server-side tracking. Fixes all gaps in the official integration: auto script injection, WC Subscriptions support, real-time tracking, deduplication, and audit log.
  * Version:     1.1.0
- * Author:      VIXI LLC
- * Author URI:  https://vixi.agency
+ * Author:      Carlos Aragon
+ * Author URI:  https://carlosaragon.online
  * License:     GPL-2.0+
  * Text Domain: hyros-woo
  * Requires at least: 5.8

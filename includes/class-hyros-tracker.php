@@ -363,12 +363,25 @@ class Hyros_Tracker {
 
         $result = $api->send_refund((string) $order_id, $amount);
 
+        $detail = $result['error'];
+        $meta   = [];
+        if ($result['success']) {
+            $detail = !empty($result['request_id'])
+                ? 'Request ID: ' . $result['request_id']
+                : __('Refund accepted by Hyros.', 'hyros-woo');
+            $meta = [
+                'request_id' => $result['request_id'] ?? '',
+                'total'      => (string) $amount,
+                'currency'   => $order->get_currency(),
+            ];
+        }
+
         Hyros_Logger::log(
             $order_id,
             $result['success'] ? 'refund_tracked' : 'refund_failed',
-            $result['success']
-                ? (!empty($result['hyros_id']) ? 'Hyros ID: ' . $result['hyros_id'] : '')
-                : $result['error']
+            $detail,
+            '',
+            $meta
         );
 
         if ($result['success']) {
