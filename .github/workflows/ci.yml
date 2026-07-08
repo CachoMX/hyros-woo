@@ -42,3 +42,7 @@ jobs:
           fetch-depth: 0
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
+        env:
+          # Required by gitleaks-action to resolve the commit range on
+          # pull_request events; the default workflow token is enough.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
