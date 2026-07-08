@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.8
 WC requires at least: 6.0
 WC tested up to: 9.9
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 Requires PHP: 7.4
 License: GPL-2.0+
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -14,7 +14,7 @@ Production-ready WooCommerce to Hyros server-side tracking — fixes all gaps in
 
 == Description ==
 
-HyrosWoo provides a robust, production-ready bridge between WooCommerce and the Hyros attribution platform. It addresses five critical gaps in the official Hyros WooCommerce integration:
+HyrosWoo provides a production-ready bridge between WooCommerce and the Hyros attribution platform. It addresses five critical gaps in the official Hyros WooCommerce integration:
 
 1. **Auto Script Injection** — Automatically injects your Hyros tracking script into every page `<head>` without manual theme edits.
 2. **WC Subscriptions Support** — Tracks WooCommerce Subscriptions renewal payments as new Hyros sales automatically.
@@ -40,6 +40,9 @@ Optionally, define your API key in `wp-config.php` for added security:
 `define('HYROS_API_KEY', 'your-api-key-here');`
 
 == Changelog ==
+
+= 1.1.1 =
+* Fix: the Save Settings pre-check rejected tracking scripts served from custom domains (e.g. data.yourstore.com). The client now checks structure only; the server keeps validating the script host against *.hyros.com and the account's verified domains.
 
 = 1.1.0 =
 * Security hardening for tracking script validation and admin capabilities.

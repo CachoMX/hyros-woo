@@ -3,7 +3,7 @@
  * Plugin Name: HyrosWoo
  * Plugin URI:  https://github.com/CachoMX/hyros-woo
  * Description: Production-ready WooCommerce to Hyros server-side tracking. Fixes all gaps in the official integration: auto script injection, WC Subscriptions support, real-time tracking, deduplication, and audit log.
- * Version:     1.1.0
+ * Version:     1.1.1
  * Author:      Carlos Aragon
  * Author URI:  https://carlosaragon.online
  * License:     GPL-2.0+
@@ -14,7 +14,7 @@
  * WC tested up to: 9.9
  */
 defined('ABSPATH') || exit;
-define('HYROS_WOO_VERSION', '1.1.0');
+define('HYROS_WOO_VERSION', '1.1.1');
 define('HYROS_WOO_PLUGIN_FILE', __FILE__);
 define('HYROS_WOO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HYROS_WOO_PLUGIN_URL', plugin_dir_url(__FILE__));

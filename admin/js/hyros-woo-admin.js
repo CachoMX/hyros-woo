@@ -211,7 +211,9 @@
         var $btn = $(this);
         var scriptContent = $('#hyros-script-content').val();
 
-        if (scriptContent && !/<script[\s\S]*script\.src[\s\S]*hyros\.com[\s\S]*<\/script>/i.test(scriptContent)) {
+        // Structural pre-check only. The server validates the src host against
+        // *.hyros.com plus the account's custom tracking domains from /domains.
+        if (scriptContent && !/<script[\s\S]*script\.src[\s\S]*<\/script>/i.test(scriptContent)) {
             showNotice(i18n.invalidScript, 'error');
             $('#hyros-script-content').attr('aria-invalid', 'true').focus();
             return;
