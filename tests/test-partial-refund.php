@@ -195,7 +195,10 @@ $dels = calls_named($api, 'send_refund');
 check('reports success', true, $result['success']);
 check('exactly one PUT /sales call', 1, count($puts));
 check('the refunded sale is product 1', ['sle-1'], $puts[0][1] ?? []);
-check('full-line refund omits the amount (Hyros uses sale price)', 0.0, $puts[0][2] ?? -1);
+// Hyros sale prices include the distributed shipping share, so the exact WC
+// cash amount must always be sent; an amount-less refund would also return
+// shipping the customer never got back (order 490 regression).
+check('full-line refund sends the exact WC cash amount', 20.0, $puts[0][2] ?? -1);
 check('no order-level DELETE call (no remainder)', 0, count($dels));
 
 // ------------------------- case 2: refund 2 units of a qty-5 line (partial amount)
@@ -310,6 +313,48 @@ $result = run_partial($order, $api, 20.00);
 $puts = calls_named($api, 'refund_sales');
 
 check('refunds the un-refunded duplicate', ['sle-new'], $puts[0][1] ?? []);
+
+// ------------------------- case 9: order 490 regression — shipping distributed into sale prices
+
+echo "\nOrder 490 regression — refund \$5 of items, Hyros sales carry shipping shares\n";
+
+// WC: Omni $3, Hyrolian $1.50, Sven $2, Test 1 x2 $2, shipping $6.99, total $15.49.
+// Hyros distributed the shipping into the sale prices (4.75 / 3.25 / 3.75 / 3.75).
+// Refund of Omni + Sven returned exactly $5.00 cash, no shipping.
+$items = [
+    new WC_Order_Item_Product('Omni', 1, 3.00, 3.00, 0.0, 488),
+    new WC_Order_Item_Product('Hyrolian', 1, 1.50, 1.50, 0.0, 486),
+    new WC_Order_Item_Product('Sven', 1, 2.00, 2.00, 0.0, 487),
+    new WC_Order_Item_Product('Test 1', 2, 2.00, 2.00, 0.0, 485),
+];
+$order = new WC_Order(490, $items, 15.49);
+$order->meta['_hyros_sale_tracked'] = 'yes';
+$refund = new WC_Order_Refund(491, [
+    new WC_Order_Item_Product('Omni', -1, -3.00, -3.00, 0.0, 488),
+    new WC_Order_Item_Product('Sven', -1, -2.00, -2.00, 0.0, 487),
+], -5.00);
+$GLOBALS['order_registry'] = [490 => $order, 491 => $refund];
+
+$api = new Hyros_API();
+$sales_490 = [
+    ['id' => 'sle-omni', 'orderId' => '490', 'quantity' => 1, 'price' => ['price' => 4.75, 'refunded' => 0], 'product' => ['tag' => '$woocommerce-omni-3', 'name' => 'Omni']],
+    ['id' => 'sle-hyro', 'orderId' => '490', 'quantity' => 1, 'price' => ['price' => 3.25, 'refunded' => 0], 'product' => ['tag' => '$woocommerce-hyrolian-1.5', 'name' => 'Hyrolian']],
+    ['id' => 'sle-sven', 'orderId' => '490', 'quantity' => 1, 'price' => ['price' => 3.75, 'refunded' => 0], 'product' => ['tag' => '$woocommerce-sven-2', 'name' => 'Sven']],
+    ['id' => 'sle-test', 'orderId' => '490', 'quantity' => 2, 'price' => ['price' => 3.75, 'refunded' => 0], 'product' => ['tag' => '$woocommerce-test-1-1', 'name' => 'Test 1']],
+];
+$api->sales_response = ['success' => true, 'sales' => $sales_490, 'error' => '', 'status_code' => 200];
+
+$m = new ReflectionMethod('Hyros_Tracker', 'send_partial_refund');
+$result = $m->invoke(null, $api, $order, $refund, 5.00);
+$puts = calls_named($api, 'refund_sales');
+$dels = calls_named($api, 'send_refund');
+
+check('reports success', true, $result['success']);
+check('two PUT /sales calls (one per refunded line)', 2, count($puts));
+check('Omni refunded exactly its 3.00 cash, not its 4.75 sale price', 3.00, $puts[0][2] ?? -1);
+check('Sven refunded exactly its 2.00 cash, not its 3.75 sale price', 2.00, $puts[1][2] ?? -1);
+check('total sent to Hyros equals the 5.00 the customer got back', 5.00, ($puts[0][2] ?? 0) + ($puts[1][2] ?? 0));
+check('no order-level DELETE (no shipping was refunded)', 0, count($dels));
 
 echo "\n" . ($failures === 0 ? "All checks passed.\n" : "$failures check(s) failed.\n");
 exit($failures === 0 ? 0 : 1);

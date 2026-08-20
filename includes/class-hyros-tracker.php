@@ -486,12 +486,20 @@ class Hyros_Tracker {
             return $api->send_refund($order_id, $amount);
         }
 
-        $full_refund_ids = [];
-        $partial_calls   = [];
-        $handled_total   = 0.0;
-        $details         = [];
+        $refund_calls  = [];
+        $handled_total = 0.0;
+        $details       = [];
 
         foreach ($refund_lines as $line) {
+            // The cash the customer actually got back for this line. Hyros sale
+            // prices include the distributed shipping share, so refunding a sale
+            // WITHOUT an explicit amount would refund item + shipping even when
+            // the shipping was not returned. Always send the exact amount.
+            $cash = (float) $line['amount_incl_tax'];
+            if ($cash <= 0) {
+                continue;
+            }
+
             $candidates = $sales_by_tag[$line['tag']] ?? [];
             $sale       = null;
             foreach ($candidates as $idx => $candidate) {
@@ -506,19 +514,18 @@ class Hyros_Tracker {
                 continue; // No un-refunded sale for this product — remainder covers it.
             }
 
-            if ($line['qty'] >= (int) $sale['quantity']) {
-                // Whole line refunded — refund the full sale, Hyros uses its own price.
-                $full_refund_ids[] = $sale['id'];
-                $details[]         = sprintf('%s (full)', $line['name']);
-            } else {
-                // Part of the line (e.g. 2 of 5 units) — refund the exact amount.
-                $partial_calls[] = ['id' => $sale['id'], 'amount' => $line['amount_ex_tax']];
-                $details[]       = sprintf('%s (%s %s)', $line['name'], number_format($line['amount_ex_tax'], 2), $order->get_currency());
-            }
-            $handled_total += $line['amount_incl_tax'];
+            $refund_calls[] = ['id' => $sale['id'], 'amount' => $cash];
+            $details[]      = sprintf(
+                '%s (%s%s %s)',
+                $line['name'],
+                $line['qty'] >= (int) $sale['quantity'] ? 'full line, ' : 'partial, ',
+                number_format($cash, 2),
+                $order->get_currency()
+            );
+            $handled_total += $cash;
         }
 
-        if (empty($full_refund_ids) && empty($partial_calls)) {
+        if (empty($refund_calls)) {
             // Nothing mapped — order-level fallback.
             return $api->send_refund($order_id, $amount);
         }
@@ -527,16 +534,7 @@ class Hyros_Tracker {
         $request_ids = [];
         $errors      = [];
 
-        if (!empty($full_refund_ids)) {
-            $result = $api->refund_sales($full_refund_ids, 0.0, $refund_date);
-            if ($result['success']) {
-                $request_ids[] = $result['request_id'];
-            } else {
-                $errors[] = $result['error'];
-            }
-        }
-
-        foreach ($partial_calls as $call) {
+        foreach ($refund_calls as $call) {
             $result = $api->refund_sales([$call['id']], (float) $call['amount'], $refund_date);
             if ($result['success']) {
                 $request_ids[] = $result['request_id'];

@@ -510,9 +510,7 @@ The 2-arg variant supplies a `$refund_id` for **partial** refunds — full refun
 
 1. `collect_refund_lines()` reads the `WC_Order_Refund` line items and rebuilds each product's Hyros tag with the same `build_product_tag()` used at sale time (tag = product identity in Hyros).
 2. `resolve_order_sales()` calls `GET /sales?emails={billing_email}` and keeps the sales whose `orderId` matches this WC order, grouped by product tag.
-3. Per refunded line:
-   * whole line refunded → `PUT /sales?ids={saleId}&isRefunded=true` (Hyros refunds the sale's own price),
-   * partial quantity (e.g. 2 of 5 units) → `PUT /sales?ids={saleId}&isRefunded=true&refundedAmount={amount}` (verified: leaves `refunded: {amount}` on the sale without touching its price).
+3. Per refunded line: `PUT /sales?ids={saleId}&isRefunded=true&refundedAmount={cash}` where `{cash}` is the exact WooCommerce refund amount for that line (incl. its tax). The amount is ALWAYS sent explicitly (1.2.1): Hyros distributes the order's shipping cost into each sale's price, so an amount-less "full sale" refund would also return the product's shipping share that the customer never got back (order 490 regression: a $5.00 two-product refund on an order with $6.99 shipping was recorded as $8.50).
 4. Whatever the sale-level pass could not cover (shipping, fees, unmatched lines) goes out as `DELETE /orders/{id}?refundedAmount={remainder}`.
 
 ### Fallbacks — a refund is never lost

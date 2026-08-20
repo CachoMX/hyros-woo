@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.8
 WC requires at least: 6.0
 WC tested up to: 9.9
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 Requires PHP: 7.4
 License: GPL-2.0+
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -40,6 +40,9 @@ Optionally, define your API key in `wp-config.php` for added security:
 `define('HYROS_API_KEY', 'your-api-key-here');`
 
 == Changelog ==
+
+= 1.2.1 =
+* Fix: full-line partial refunds now always send the exact WooCommerce refund amount (`refundedAmount`) instead of letting Hyros refund the sale's own price. Hyros distributes the order's shipping cost into each sale's price, so an amount-less refund also returned each product's shipping share that the customer never got back (e.g. a $5.00 two-product refund on an order with $6.99 shipping was recorded as $8.50 refunded in Hyros).
 
 = 1.2.0 =
 * Feature: partial refunds are now reported at the product (sale) level. Refunding one product of a multi-product order marks only that product's Hyros sale as refunded (`PUT /sales?isRefunded=true`), so the order income and per-product refund stats stay accurate. Previously the order-level `DELETE /orders?refundedAmount` call smeared the refunded amount evenly across every product in the order.
