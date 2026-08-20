@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.8
 WC requires at least: 6.0
 WC tested up to: 9.9
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 Requires PHP: 7.4
 License: GPL-2.0+
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -40,6 +40,20 @@ Optionally, define your API key in `wp-config.php` for added security:
 `define('HYROS_API_KEY', 'your-api-key-here');`
 
 == Changelog ==
+
+= 1.2.0 =
+* Feature: partial refunds are now reported at the product (sale) level. Refunding one product of a multi-product order marks only that product's Hyros sale as refunded (`PUT /sales?isRefunded=true`), so the order income and per-product refund stats stay accurate. Previously the order-level `DELETE /orders?refundedAmount` call smeared the refunded amount evenly across every product in the order.
+* Feature: partial-quantity refunds (e.g. 2 of 5 units of one line) send the exact refunded amount against that line's sale via `refundedAmount`.
+* Feature: refunded shipping, fees, and any line that cannot be matched to a Hyros sale are still reported through the order-level partial refund so no amount is ever lost.
+* Feature: when the Hyros sales of an order have not been ingested yet (order creation is asynchronous on the Hyros side), the refund is retried via WP-Cron up to 3 times before falling back to the order-level call.
+* Dev: `hyros_woo_item_level_refunds` filter to disable sale-level refunds and restore the old order-level behavior.
+* Dev: new regression harness `tests/test-partial-refund.php`.
+
+= 1.1.2 =
+* Fix: discounted sales were reported to Hyros at $0. `items[].price` sent the line total after discount while `itemDiscount` was sent alongside it, so Hyros subtracted the discount twice. It now sends the gross pre-discount unit price.
+* Fix: `orderDiscount` is no longer sent. `WC_Order::get_discount_total()` is the same coupon money already reported per line as `itemDiscount`, and Hyros subtracted both.
+* Fix: every line item was tagged with the constant `$hyros-woo`. In Hyros the tag is the product's identity, so an entire catalog collapsed into a single product. Tags are now derived per product as `$woocommerce-<name>-<gross unit price>`, matching the official Hyros WooCommerce integration so sales land on products the account already has. Override with the `hyros_woo_product_tag` filter.
+* Fix: product names in non-Latin scripts produced an empty tag slug, collapsing those products together. Accents are transliterated and names with no Latin characters fall back to the product ID.
 
 = 1.1.1 =
 * Fix: the Save Settings pre-check rejected tracking scripts served from custom domains (e.g. data.yourstore.com). The client now checks structure only; the server keeps validating the script host against *.hyros.com and the account's verified domains.

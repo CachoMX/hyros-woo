@@ -32,8 +32,9 @@ class Hyros_Tracker {
         $track_atc   = get_option('hyros_woo_track_add_to_cart', 'yes') === 'yes';
         $inject_script = get_option('hyros_woo_inject_script', 'yes') === 'yes';
 
-        // Retry handler is always registered; script injection is configurable.
+        // Retry handlers are always registered; script injection is configurable.
         add_action('hyros_woo_retry_sale', [self::class, 'handle_retry'], 10, 1);
+        add_action('hyros_woo_retry_refund', [self::class, 'handle_refund_retry'], 10, 2);
         if ($inject_script) {
             add_action('wp_head', [self::class, 'inject_script'], 1);
         }
@@ -351,6 +352,7 @@ class Hyros_Tracker {
         }
 
         // For partial refunds use the specific refund amount, not the cumulative total.
+        $refund_obj = null;
         if ($refund_id > 0) {
             $refund_obj = wc_get_order($refund_id);
             $amount     = $refund_obj ? abs((float) $refund_obj->get_total()) : max(0, (float) $order->get_total_refunded() - $already_refunded);
@@ -361,14 +363,24 @@ class Hyros_Tracker {
             return true;
         }
 
-        $result = $api->send_refund((string) $order_id, $amount);
+        if ($refund_id > 0 && $refund_obj instanceof \WC_Order_Refund) {
+            $result = self::send_partial_refund($api, $order, $refund_obj, $amount);
+            if (!$result['success'] && !empty($result['needs_retry'])) {
+                self::schedule_refund_retry($order, $refund_id);
+                return false;
+            }
+        } else {
+            $result = $api->send_refund((string) $order_id, $amount);
+        }
 
         $detail = $result['error'];
         $meta   = [];
         if ($result['success']) {
-            $detail = !empty($result['request_id'])
-                ? 'Request ID: ' . $result['request_id']
-                : __('Refund accepted by Hyros.', 'hyros-woo');
+            $detail = !empty($result['detail'])
+                ? $result['detail']
+                : (!empty($result['request_id'])
+                    ? 'Request ID: ' . $result['request_id']
+                    : __('Refund accepted by Hyros.', 'hyros-woo'));
             $meta = [
                 'request_id' => $result['request_id'] ?? '',
                 'total'      => (string) $amount,
@@ -397,6 +409,271 @@ class Hyros_Tracker {
         }
 
         return false;
+    }
+
+    /**
+     * WP-Cron handler: retry a partial refund whose Hyros sales were not yet
+     * ingested (order creation is asynchronous on the Hyros side).
+     *
+     * After MAX_RETRIES attempts the refund falls back to the order-level
+     * DELETE ?refundedAmount call so the amount is never lost.
+     *
+     * @param int $order_id
+     * @param int $refund_id
+     */
+    public static function handle_refund_retry(int $order_id, int $refund_id): void {
+        self::handle_refund($order_id, $refund_id);
+    }
+
+    /**
+     * Schedule a one-shot cron retry for a partial refund. Tracks attempts in
+     * order meta; when the budget is exhausted the caller falls back to the
+     * order-level refund instead of scheduling again.
+     */
+    private static function schedule_refund_retry(\WC_Order $order, int $refund_id): void {
+        if (wp_next_scheduled('hyros_woo_retry_refund', [$order->get_id(), $refund_id])) {
+            return;
+        }
+        wp_schedule_single_event(time() + 300, 'hyros_woo_retry_refund', [$order->get_id(), $refund_id]);
+        Hyros_Logger::log(
+            $order->get_id(),
+            'refund_retry_scheduled',
+            sprintf('Hyros sales not ingested yet for refund #%d. Retrying in 300s.', $refund_id)
+        );
+    }
+
+    /**
+     * Report a partial refund to Hyros at the sale (product) level.
+     *
+     * Resolves the Hyros sales that belong to this order, marks the sales of
+     * the refunded products as refunded (PUT /sales?isRefunded=true), and
+     * sends any unmatched remainder (shipping, fees, unmapped lines) as an
+     * order-level partial refund (DELETE /orders?refundedAmount=). When the
+     * sales cannot be resolved the whole amount falls back to the
+     * order-level call, so the refund is always recorded.
+     *
+     * @param Hyros_API        $api
+     * @param \WC_Order        $order
+     * @param \WC_Order_Refund $refund
+     * @param float            $amount Total refunded in this event (incl. tax).
+     * @return array{success: bool, request_id: string, error: string, detail?: string, needs_retry?: bool}
+     */
+    private static function send_partial_refund(Hyros_API $api, \WC_Order $order, \WC_Order_Refund $refund, float $amount): array {
+        $order_id = (string) $order->get_id();
+
+        $item_level_enabled = (bool) apply_filters('hyros_woo_item_level_refunds', true, $order, $refund);
+        $refund_lines       = $item_level_enabled ? self::collect_refund_lines($order, $refund) : [];
+
+        // Amount-only refund (no line items) — order-level partial refund.
+        if (empty($refund_lines)) {
+            return $api->send_refund($order_id, $amount);
+        }
+
+        $sales_by_tag = self::resolve_order_sales($api, $order);
+        if (null === $sales_by_tag) {
+            // Lookup failed (missing API role or transport error) — fall back.
+            return $api->send_refund($order_id, $amount);
+        }
+
+        $attempts = (int) $order->get_meta('_hyros_refund_retry_' . $refund->get_id(), true);
+        if (empty($sales_by_tag)) {
+            if ($attempts < self::MAX_RETRIES) {
+                $order->update_meta_data('_hyros_refund_retry_' . $refund->get_id(), $attempts + 1);
+                $order->save();
+                return ['success' => false, 'request_id' => '', 'error' => __('Hyros sales not ingested yet.', 'hyros-woo'), 'needs_retry' => true];
+            }
+            // Retries exhausted — record the amount order-wide instead of losing it.
+            return $api->send_refund($order_id, $amount);
+        }
+
+        $full_refund_ids = [];
+        $partial_calls   = [];
+        $handled_total   = 0.0;
+        $details         = [];
+
+        foreach ($refund_lines as $line) {
+            $candidates = $sales_by_tag[$line['tag']] ?? [];
+            $sale       = null;
+            foreach ($candidates as $idx => $candidate) {
+                $already = (float) ($candidate['refunded'] ?? 0);
+                if ($already <= 0) {
+                    $sale = $candidate;
+                    unset($sales_by_tag[$line['tag']][$idx]);
+                    break;
+                }
+            }
+            if (null === $sale) {
+                continue; // No un-refunded sale for this product — remainder covers it.
+            }
+
+            if ($line['qty'] >= (int) $sale['quantity']) {
+                // Whole line refunded — refund the full sale, Hyros uses its own price.
+                $full_refund_ids[] = $sale['id'];
+                $details[]         = sprintf('%s (full)', $line['name']);
+            } else {
+                // Part of the line (e.g. 2 of 5 units) — refund the exact amount.
+                $partial_calls[] = ['id' => $sale['id'], 'amount' => $line['amount_ex_tax']];
+                $details[]       = sprintf('%s (%s %s)', $line['name'], number_format($line['amount_ex_tax'], 2), $order->get_currency());
+            }
+            $handled_total += $line['amount_incl_tax'];
+        }
+
+        if (empty($full_refund_ids) && empty($partial_calls)) {
+            // Nothing mapped — order-level fallback.
+            return $api->send_refund($order_id, $amount);
+        }
+
+        $refund_date = gmdate('c');
+        $request_ids = [];
+        $errors      = [];
+
+        if (!empty($full_refund_ids)) {
+            $result = $api->refund_sales($full_refund_ids, 0.0, $refund_date);
+            if ($result['success']) {
+                $request_ids[] = $result['request_id'];
+            } else {
+                $errors[] = $result['error'];
+            }
+        }
+
+        foreach ($partial_calls as $call) {
+            $result = $api->refund_sales([$call['id']], (float) $call['amount'], $refund_date);
+            if ($result['success']) {
+                $request_ids[] = $result['request_id'];
+            } else {
+                $errors[] = $result['error'];
+            }
+        }
+
+        if (!empty($errors)) {
+            // Sale-level calls failed — record the whole amount order-wide instead.
+            $fallback = $api->send_refund($order_id, $amount);
+            if (!$fallback['success']) {
+                $fallback['error'] = implode(' | ', array_merge($errors, [$fallback['error']]));
+            }
+            return $fallback;
+        }
+
+        // Shipping, fees, or unmapped lines — send the rest order-wide.
+        $remainder = round($amount - $handled_total, 2);
+        if ($remainder > 0.01) {
+            $result = $api->send_refund($order_id, $remainder);
+            if ($result['success']) {
+                $request_ids[] = $result['request_id'];
+                $details[]     = sprintf('remainder %s %s order-level', number_format($remainder, 2), $order->get_currency());
+            } else {
+                Hyros_Logger::log(
+                    $order->get_id(),
+                    'refund_remainder_failed',
+                    sprintf('Sale-level refunds succeeded but the %.2f remainder failed: %s', $remainder, $result['error'])
+                );
+            }
+        }
+
+        return [
+            'success'    => true,
+            'request_id' => implode(', ', array_filter($request_ids)),
+            'error'      => '',
+            'detail'     => sprintf(
+                /* translators: list of refunded products */
+                __('Sale-level refund: %s', 'hyros-woo'),
+                implode(', ', $details)
+            ),
+        ];
+    }
+
+    /**
+     * Extract the product lines of a WC refund, matched back to the original
+     * order lines so the Hyros product tag can be rebuilt identically to the
+     * one sent at sale time.
+     *
+     * @param \WC_Order        $order
+     * @param \WC_Order_Refund $refund
+     * @return array<int, array{tag: string, name: string, qty: int, amount_ex_tax: float, amount_incl_tax: float}>
+     */
+    private static function collect_refund_lines(\WC_Order $order, \WC_Order_Refund $refund): array {
+        // Index original order lines by product id to recover the pre-discount unit price.
+        $original = [];
+        foreach ($order->get_items() as $item) {
+            /** @var WC_Order_Item_Product $item */
+            $key = $item->get_variation_id() > 0 ? $item->get_variation_id() : $item->get_product_id();
+            $qty = (int) $item->get_quantity();
+            $original[$key] = [
+                'item'       => $item,
+                'unit_price' => $qty > 0 ? round((float) $item->get_subtotal() / $qty, 4) : (float) $item->get_subtotal(),
+            ];
+        }
+
+        $lines = [];
+        foreach ($refund->get_items() as $refund_item) {
+            /** @var WC_Order_Item_Product $refund_item */
+            $qty = abs((int) $refund_item->get_quantity());
+            $amount_ex  = abs((float) $refund_item->get_total());
+            $amount_tax = abs((float) $refund_item->get_total_tax());
+            if ($qty <= 0 && $amount_ex <= 0) {
+                continue;
+            }
+
+            $key      = $refund_item->get_variation_id() > 0 ? $refund_item->get_variation_id() : $refund_item->get_product_id();
+            $source   = $original[$key]['item'] ?? $refund_item;
+            $unit     = isset($original[$key]) ? $original[$key]['unit_price'] : ($qty > 0 ? round($amount_ex / $qty, 4) : $amount_ex);
+
+            $lines[] = [
+                'tag'             => self::build_product_tag($source, $unit),
+                'name'            => $refund_item->get_name(),
+                'qty'             => $qty,
+                'amount_ex_tax'   => round($amount_ex, 2),
+                'amount_incl_tax' => round($amount_ex + $amount_tax, 2),
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Fetch this order's sales from Hyros, grouped by product tag.
+     *
+     * @param Hyros_API $api
+     * @param \WC_Order $order
+     * @return array<string, array<int, array{id: string, quantity: int, price: float, refunded: float}>>|null
+     *         Map of tag => sales. Empty array when the lead has no sales for
+     *         this order yet (not ingested). Null when the lookup itself failed.
+     */
+    private static function resolve_order_sales(Hyros_API $api, \WC_Order $order): ?array {
+        $email = $order->get_billing_email();
+        if (empty($email)) {
+            return null;
+        }
+
+        $lookup = $api->get_sales_for_email($email);
+        if (!$lookup['success']) {
+            Hyros_Logger::log(
+                $order->get_id(),
+                'refund_sales_lookup_failed',
+                sprintf('GET /sales failed (%d): %s. Falling back to order-level refund.', $lookup['status_code'], $lookup['error'])
+            );
+            return null;
+        }
+
+        $order_id = (string) $order->get_id();
+        $by_tag   = [];
+        foreach ($lookup['sales'] as $sale) {
+            if (!is_array($sale) || (string) ($sale['orderId'] ?? '') !== $order_id) {
+                continue;
+            }
+            $tag = (string) ($sale['product']['tag'] ?? '');
+            if ('' === $tag) {
+                continue;
+            }
+            $by_tag[$tag][] = [
+                'id'       => (string) ($sale['id'] ?? ''),
+                'quantity' => (int) ($sale['quantity'] ?? 1),
+                'price'    => (float) ($sale['price']['price'] ?? 0),
+                'refunded' => (float) ($sale['price']['refunded'] ?? 0),
+            ];
+        }
+
+        return $by_tag;
     }
 
     /**
@@ -545,7 +822,9 @@ class Hyros_Tracker {
             $item_tax      = (float) $item->get_total_tax();       // tax on this line
             $item_subtotal = (float) $item->get_subtotal();        // before discount
             $discount      = $qty > 0 ? round(($item_subtotal - $item_total) / $qty, 4) : 0;
-            $price         = $qty > 0 ? round($item_total / $qty, 4) : $item_total;
+            // Hyros records price minus itemDiscount, so price must be the gross
+            // pre-discount unit price or the discount is subtracted twice.
+            $price         = $qty > 0 ? round($item_subtotal / $qty, 4) : $item_subtotal;
             $tax_per_unit  = $qty > 0 ? round($item_tax / $qty, 4) : 0;
 
             $line_item = [
@@ -553,7 +832,7 @@ class Hyros_Tracker {
                 'price'      => $price,
                 'externalId' => (string) $item->get_product_id(),
                 'quantity'   => $qty,
-                'tag'        => '$hyros-woo',
+                'tag'        => self::build_product_tag($item, $price),
             ];
             if ($tax_per_unit > 0) {
                 $line_item['taxes'] = $tax_per_unit;
@@ -608,10 +887,9 @@ class Hyros_Tracker {
             $payload['shippingCost'] = $shipping;
         }
 
-        $order_discount = (float) $order->get_discount_total();
-        if ($order_discount > 0) {
-            $payload['orderDiscount'] = $order_discount;
-        }
+        // orderDiscount is deliberately omitted: WC_Order::get_discount_total() is the
+        // same coupon money already reported per line as itemDiscount, and Hyros
+        // subtracts both.
 
         if (!empty($cart_id)) {
             $payload['cartId'] = $cart_id;
@@ -657,6 +935,42 @@ class Hyros_Tracker {
         }
 
         return $result;
+    }
+
+    /**
+     * Build the Hyros product tag for a line item.
+     *
+     * In Hyros the tag — not the name — is the product's identity, so every item
+     * sharing one tag collapses into a single product. Mirrors the tag emitted by
+     * the official Hyros WooCommerce integration ($woocommerce-<name>-<gross unit
+     * price>) so sales keep landing on the products an account already has.
+     *
+     * @param \WC_Order_Item_Product $item
+     * @param float                  $unit_price Gross unit price, pre-discount.
+     * @return string
+     */
+    private static function build_product_tag($item, float $unit_price): string {
+        $name = function_exists('remove_accents')
+            ? remove_accents($item->get_name())
+            : $item->get_name();
+
+        $slug = strtolower((string) preg_replace('/[^A-Za-z0-9 ]/', '', $name));
+        $slug = trim((string) preg_replace('/\s+/', '-', trim($slug)), '-');
+
+        // Names written in a non-Latin script leave nothing behind, and an empty
+        // slug would collapse every such product onto one tag.
+        if ('' === $slug) {
+            $slug = 'product-' . $item->get_product_id();
+        }
+
+        $price = rtrim(rtrim(number_format($unit_price, 2, '.', ''), '0'), '.');
+        if ('' === $price || '-' === $price) {
+            $price = '0';
+        }
+
+        $tag = '$woocommerce-' . $slug . '-' . $price;
+
+        return (string) apply_filters('hyros_woo_product_tag', $tag, $item, $unit_price);
     }
 
     /**

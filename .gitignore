@@ -7,3 +7,9 @@ Thumbs.db
 
 # Local temp / test artifacts
 .tmp/
+
+# Local secrets
+.env.local
+
+# Reference copy of the official Hyros plugin (not part of this plugin)
+hyros-tracking/

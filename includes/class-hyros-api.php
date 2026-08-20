@@ -156,6 +156,121 @@ class Hyros_API {
     }
 
     /**
+     * PUT /orders/{orderId} — replace the order's items list.
+     * Hyros soft-deletes the order's existing sales and recreates them
+     * from the provided items (async, ~5 min).
+     *
+     * @param string $order_id
+     * @param array  $payload  Body with at least an 'items' array.
+     */
+    public function update_order(string $order_id, array $payload): array {
+        $response = $this->request('PUT', '/orders/' . rawurlencode($order_id), $payload, true);
+        if (!$response['success']) {
+            return [
+                'success'     => false,
+                'request_id'  => '',
+                'error'       => $response['error'],
+                'status_code' => $response['status_code'],
+                'retryable'   => $response['retryable'],
+                'retry_after' => $response['retry_after'],
+            ];
+        }
+
+        $body = is_array($response['data']) ? $response['data'] : [];
+        return [
+            'success'     => true,
+            'request_id'  => isset($body['request_id']) ? (string) $body['request_id'] : '',
+            'error'       => '',
+            'status_code' => $response['status_code'],
+            'retryable'   => false,
+            'retry_after' => 0,
+        ];
+    }
+
+    /**
+     * GET /sales?emails= — retrieve the sales recorded for a lead email.
+     * Used to resolve the Hyros sale ids belonging to a WooCommerce order
+     * so refunds can be applied per product instead of order-wide.
+     *
+     * @param string $email
+     * @return array{success: bool, sales: array, error: string, status_code: int}
+     */
+    public function get_sales_for_email(string $email): array {
+        $path     = '/sales?emails=' . rawurlencode($email) . '&pageSize=250';
+        $response = $this->request('GET', $path, [], true);
+        if (!$response['success']) {
+            return [
+                'success'     => false,
+                'sales'       => [],
+                'error'       => $response['error'],
+                'status_code' => $response['status_code'],
+            ];
+        }
+
+        $body  = is_array($response['data']) ? $response['data'] : [];
+        $sales = isset($body['result']) && is_array($body['result']) ? $body['result'] : [];
+        return [
+            'success'     => true,
+            'sales'       => $sales,
+            'error'       => '',
+            'status_code' => $response['status_code'],
+        ];
+    }
+
+    /**
+     * PUT /sales?ids=...&isRefunded=true — mark specific sales as refunded.
+     * With $amount > 0 the refund is recorded for that amount; without it
+     * Hyros refunds the full sale price. Async, ~5 min.
+     *
+     * @param string[] $sale_ids
+     * @param float    $amount   Optional partial amount for the refund.
+     * @param string   $date     Optional ISO 8601 refund date.
+     */
+    public function refund_sales(array $sale_ids, float $amount = 0.0, string $date = ''): array {
+        $sale_ids = array_values(array_filter(array_map('strval', $sale_ids)));
+        if (empty($sale_ids)) {
+            return [
+                'success'     => false,
+                'request_id'  => '',
+                'error'       => __('No sale ids provided.', 'hyros-woo'),
+                'status_code' => 0,
+                'retryable'   => false,
+                'retry_after' => 0,
+            ];
+        }
+
+        $path = '/sales?ids=' . rawurlencode(implode(',', $sale_ids)) . '&isRefunded=true';
+        if ($amount > 0) {
+            $path .= '&refundedAmount=' . rawurlencode((string) $amount);
+        }
+        if ('' !== $date) {
+            $path .= '&refundedDate=' . rawurlencode($date);
+        }
+
+        $response = $this->request('PUT', $path, [], true);
+        if (!$response['success']) {
+            return [
+                'success'     => false,
+                'request_id'  => '',
+                'error'       => $response['error'],
+                'status_code' => $response['status_code'],
+                'retryable'   => $response['retryable'],
+                'retry_after' => $response['retry_after'],
+            ];
+        }
+
+        $body = is_array($response['data']) ? $response['data'] : [];
+        return [
+            'success'     => true,
+            'request_id'  => isset($body['request_id']) ? (string) $body['request_id'] : '',
+            'error'       => '',
+            'status_code' => $response['status_code'],
+            'retryable'   => false,
+            'retry_after' => 0,
+        ];
+    }
+
+    /**
      * POST /clicks — register a click event for a lead.
      *
      * @param array $payload
